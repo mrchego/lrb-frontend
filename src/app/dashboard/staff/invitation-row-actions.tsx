@@ -12,6 +12,8 @@ import { MoreHorizontal, Send, Ban } from "lucide-react";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { RESEND_INVITATION_MUTATION, REVOKE_INVITATION_MUTATION } from "./mutation";
 import type { Invitation } from "./type";
+import { useConfirm } from "@/components/confirm-provider";
+import { toast } from "react-toastify";
 
 export function InvitationRowActions({
   invitation,
@@ -21,6 +23,7 @@ export function InvitationRowActions({
   onDone: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const confirm = useConfirm();
 
   const handleResend = async () => {
     if (submitting) return;
@@ -30,12 +33,13 @@ export function InvitationRowActions({
         resendInvitation: { success: boolean; errors: any[] };
       }>(RESEND_INVITATION_MUTATION, { invitationId: invitation.id });
       if (data.resendInvitation.success) {
+        toast.success(`Invitation resent to ${invitation.email}.`);
         onDone();
       } else {
-        alert(data.resendInvitation.errors?.[0]?.message ?? "Could not resend invitation.");
+        toast.error(data.resendInvitation.errors?.[0]?.message ?? "Could not resend invitation.");
       }
     } catch (err) {
-      alert(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -43,19 +47,25 @@ export function InvitationRowActions({
 
   const handleRevoke = async () => {
     if (submitting) return;
-    if (!window.confirm(`Revoke the invitation sent to ${invitation.email}?`)) return;
+    const ok = await confirm({
+    description: `Revoke the invitation sent to ${invitation.email}?`,
+    confirmLabel: "Revoke",
+    destructive: true,
+  });
+  if (!ok) return;
     setSubmitting(true);
     try {
       const data = await gqlFetch<{
         revokeInvitation: { success: boolean; errors: any[] };
       }>(REVOKE_INVITATION_MUTATION, { invitationId: invitation.id });
       if (data.revokeInvitation.success) {
+        toast.success("Invitation revoked.");
         onDone();
       } else {
-        alert(data.revokeInvitation.errors?.[0]?.message ?? "Could not revoke invitation.");
+        toast.error(data.revokeInvitation.errors?.[0]?.message ?? "Could not revoke invitation.");
       }
     } catch (err) {
-      alert(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }

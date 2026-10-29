@@ -9,7 +9,7 @@ export type ManagedProduct = {
 
 export type ProductConnection = { items: ManagedProduct[]; totalCount: number };
 
-export type BulkProductActionFailure = { productId: string; reason: string };
+export type BulkProductActionFailure = { itemId: string; reason: string };
 
 
 export type BulkProductActionResult = {

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Loading } from "@/components/loading";
+import { toast } from "react-toastify";
 
 export default function ProfileSettingsPage() {
   const { user, loading, setUser } = useAuth();
@@ -39,8 +40,7 @@ function ProfileForm({
   });
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -61,50 +61,48 @@ function ProfileForm({
     };
   }, [avatarPreview]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-    setSubmitting(true);
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setSubmitting(true);
 
-    // UpdateProfileInput fields are camelCase on the wire: firstName, lastName, phone, avatar.
-    const variables: any = { input: { ...form } };
-    const files: Record<string, File> = {};
-    if (avatar) {
-      variables.input.avatar = null;
-      files["variables.input.avatar"] = avatar;
-    }
+  // UpdateProfileInput fields are camelCase on the wire: firstName, lastName, phone, avatar.
+  const variables: any = { input: { ...form } };
+  const files: Record<string, File> = {};
+  if (avatar) {
+    variables.input.avatar = null;
+    files["variables.input.avatar"] = avatar;
+  }
 
-    try {
-      const data = Object.keys(files).length
-        ? await gqlUpload<{ updateProfile: { success: boolean; user: any; errors: any[] } }>(
-            UPDATE_PROFILE_MUTATION,
-            variables,
-            files
-          )
-        : await gqlFetch<{ updateProfile: { success: boolean; user: any; errors: any[] } }>(
-            UPDATE_PROFILE_MUTATION,
-            variables
-          );
+  try {
+    const data = Object.keys(files).length
+      ? await gqlUpload<{
+          updateProfile: { success: boolean; user: any; errors: any[] };
+        }>(UPDATE_PROFILE_MUTATION, variables, files)
+      : await gqlFetch<{
+          updateProfile: { success: boolean; user: any; errors: any[] };
+        }>(UPDATE_PROFILE_MUTATION, variables);
 
-      if (data.updateProfile.success) {
-        onSaved(data.updateProfile.user); // updates shared auth context — navbar/sidebar avatar updates instantly
-        setSuccess(true);
-        setAvatar(null);
-        if (avatarPreview) {
-          URL.revokeObjectURL(avatarPreview);
-          setAvatarPreview(null);
-        }
-      } else {
-        setError(data.updateProfile.errors?.[0]?.message ?? "Could not update profile.");
+    if (data.updateProfile.success) {
+      toast.success("Profile updated.");
+      onSaved(data.updateProfile.user); // updates shared auth context
+      setAvatar(null);
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+        setAvatarPreview(null);
       }
-    } catch (err) {
-      setError(err instanceof GraphQLError ? err.message : "Something went wrong.");
-    } finally {
-      setSubmitting(false);
+    } else {
+      toast.error(
+        data.updateProfile.errors?.[0]?.message ?? "Could not update profile.",
+      );
     }
-  };
-
+  } catch (err) {
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-1">Your profile</h1>
@@ -142,9 +140,6 @@ function ProfileForm({
           <Label>Phone</Label>
           <Input value={form.phone} onChange={update("phone")} />
         </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && <p className="text-sm text-green-600">Profile updated.</p>}
         <Button type="submit" disabled={submitting}>
           {submitting ? "Saving…" : "Save profile"}
         </Button>

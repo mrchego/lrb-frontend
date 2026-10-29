@@ -9,11 +9,6 @@ export const DASHBOARD_QUERY = `
         total active locked pendingInvitations
         signupsLast30Days { date value }
       }
-      orders {
-        total totalRevenue
-        ordersLast30Days { date value }
-        revenueLast30Days { date value }
-      }
     }
   }
 `;

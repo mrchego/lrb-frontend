@@ -25,7 +25,7 @@ import { ProductBulkActionsBar } from "./bulk-actions-bar";
 import { CreateProductSheet } from "./create-product-sheet";
 import { Plus } from "lucide-react";
 import { features, type DataTableFeatures } from "./data-table-features";
-import { Loading } from "@/components/loading";
+import { LoadingOverlay } from "@/components/loading";
 
 interface Props {
   columns: ColumnDef<DataTableFeatures, ManagedProduct>[];
@@ -144,12 +144,8 @@ export function ProductDataTable({
         />
       )}
 
-      <div className="relative overflow-x-auto">
-        {isLoading && (
-          <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        )}
+      <div className="relative overflow-x-auto" aria-busy={isLoading}>
+  {isLoading && <LoadingOverlay />}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -184,7 +180,7 @@ export function ProductDataTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {isLoading ? <Loading/> : "No products found."}
+                  {isLoading ? null : "No products found."}
                 </TableCell>
               </TableRow>
             )}

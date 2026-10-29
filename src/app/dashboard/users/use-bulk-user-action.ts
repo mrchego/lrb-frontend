@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { BulkUserActionResult } from "./type";
-import { summarizeBulkResult } from "./bulk-result-summary";
+import { notifyBulkResult } from "./bulk-result-summary";
 import {
   BULK_ACTIVATE_USERS_MUTATION,
   BULK_DEACTIVATE_USERS_MUTATION,
@@ -14,6 +14,8 @@ import {
   BULK_FORCE_PASSWORD_RESET_MUTATION,
   BULK_RESTORE_USERS_MUTATION,
 } from "./mutation";
+import { toast } from "react-toastify";
+import { useConfirm } from "@/components/confirm-provider";
 
 export type BulkAction =
   | "activate"
@@ -65,21 +67,37 @@ export const BULK_ACTION_MAP: Record<
   },
 };
 
+type RunArgs = {
+  action: BulkAction;
+  userIds: string[];
+  confirmMessage: string;
+  destructive?: boolean;
+  lockDurationMinutes?: number;
+};
+
 export function useBulkUserAction(onDone: () => void) {
   const [submitting, setSubmitting] = useState(false);
+  const confirm = useConfirm();
 
-  const run = async (
-    action: BulkAction,
-    userIds: string[],
-    confirmMessage: string,
+  const run = async ({
+    action,
+    userIds,
+    confirmMessage,
+    destructive = false,
     lockDurationMinutes = 15,
-  ) => {
+  }: RunArgs) => {
     if (submitting || userIds.length === 0) return;
-    if (!window.confirm(confirmMessage)) return;
+    const { query, field, verb } = BULK_ACTION_MAP[action];
+
+    const ok = await confirm({
+      description: confirmMessage,
+      confirmLabel: verb,
+      destructive,
+    });
+    if (!ok) return;
 
     setSubmitting(true);
     try {
-      const { query, field, verb } = BULK_ACTION_MAP[action];
       const variables =
         action === "lock"
           ? { userIds, durationMinutes: lockDurationMinutes }
@@ -88,10 +106,10 @@ export function useBulkUserAction(onDone: () => void) {
         query,
         variables,
       );
-      alert(summarizeBulkResult(data[field], verb));
+      notifyBulkResult(data[field], verb);
       onDone();
     } catch (err) {
-      alert(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
     } finally {

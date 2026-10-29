@@ -18,6 +18,6 @@ export type AssignableUser = {
 export type BulkRoleActionResult = {
   success: boolean;
   succeededIds: string[];
-  failed: { userId: string; reason: string }[];
+  failed: { itemId: string; reason: string }[];
 };
 

@@ -51,18 +51,6 @@ const links = [
     permission: "products.view_product",
   },
   {
-    href: "/dashboard/categories",
-    label: "Categories",
-    icon: FolderTree,
-    permission: "categories.view_category",
-  },
-  {
-    href: "/dashboard/orders",
-    label: "Orders",
-    icon: ClipboardList,
-    permission: "orders.view_order",
-  },
-  {
     href: "/dashboard/staff",
     label: "Staff",
     icon: Users,

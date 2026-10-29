@@ -9,13 +9,30 @@ import {
   DELETE_PRODUCT_MUTATION,
 } from "./mutation";
 import type { LucideIcon } from "lucide-react";
+import { useConfirm } from "@/components/confirm-provider";
+import { toast } from "react-toastify";
 
 type Action = "activate" | "deactivate" | "delete";
 
-const ACTION_MAP: Record<Action, { query: string; field: string }> = {
-  activate: { query: ACTIVATE_PRODUCT_MUTATION, field: "activateProduct" },
-  deactivate: { query: DEACTIVATE_PRODUCT_MUTATION, field: "deactivateProduct" },
-  delete: { query: DELETE_PRODUCT_MUTATION, field: "deleteProduct" },
+const ACTION_MAP: Record<
+  Action,
+  { query: string; field: string; success: string }
+> = {
+  activate: {
+    query: ACTIVATE_PRODUCT_MUTATION,
+    field: "activateProduct",
+    success: "Product activated.",
+  },
+  deactivate: {
+    query: DEACTIVATE_PRODUCT_MUTATION,
+    field: "deactivateProduct",
+    success: "Product deactivated.",
+  },
+  delete: {
+    query: DELETE_PRODUCT_MUTATION,
+    field: "deleteProduct",
+    success: "Product deleted.",
+  },
 };
 
 export function ProductActionButton({
@@ -36,24 +53,32 @@ export function ProductActionButton({
   destructive?: boolean;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const confirm = useConfirm();
 
   const handleClick = async () => {
     if (submitting) return;
-    if (!window.confirm(confirmMessage)) return;
+    
+    const ok = await confirm({
+    description: confirmMessage,
+    confirmLabel: label,
+    destructive,
+  });
+  if (!ok) return;
 
     setSubmitting(true);
     try {
-      const { query, field } = ACTION_MAP[action];
+      const { query, field , success } = ACTION_MAP[action];
       const data = await gqlFetch<Record<string, { success: boolean; errors?: any[] }>>(query, {
         productId,
       });
       if (data[field].success) {
+        toast.success(success);
         onDone();
       } else {
-        alert(data[field].errors?.[0]?.message ?? "Action failed.");
+        toast.error(data[field].errors?.[0]?.message ?? "Action failed.");
       }
     } catch (err) {
-      alert(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }

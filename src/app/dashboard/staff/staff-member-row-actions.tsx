@@ -12,6 +12,8 @@ import { MoreHorizontal, ShieldOff } from "lucide-react";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { DEMOTE_STAFF_FROM_LOGIN_MUTATION } from "./mutation";
 import type { StaffMember } from "./type";
+import { useConfirm } from "@/components/confirm-provider";
+import { toast } from "react-toastify";
 
 export function StaffMemberRowActions({
   target,
@@ -25,26 +27,29 @@ export function StaffMemberRowActions({
   const [submitting, setSubmitting] = useState(false);
   const isSelf = target.id === currentUserId;
 
+  const confirm = useConfirm();
+
   const handleDemote = async () => {
     if (submitting) return;
-    if (
-      !window.confirm(
-        `Remove ${target.email}'s login access? Their role assignments will be cleared and any pending invitation cancelled.`,
-      )
-    )
-      return;
+    const ok = await confirm({
+    description: `Remove ${target.email}'s login access? Their role assignments will be cleared and any pending invitation cancelled.`,
+    confirmLabel: "Remove access",
+    destructive: true,
+  });
+  if (!ok) return;
     setSubmitting(true);
     try {
       const data = await gqlFetch<{
         demoteStaffFromLogin: { success: boolean; errors: any[] };
       }>(DEMOTE_STAFF_FROM_LOGIN_MUTATION, { userId: target.id });
       if (data.demoteStaffFromLogin.success) {
+        toast.success(`Login access removed for ${target.email}.`);
         onDone();
       } else {
-        alert(data.demoteStaffFromLogin.errors?.[0]?.message ?? "Could not remove access.");
+        toast.error(data.demoteStaffFromLogin.errors?.[0]?.message ?? "Could not remove access.");
       }
     } catch (err) {
-      alert(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }

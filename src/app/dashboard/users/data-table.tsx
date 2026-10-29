@@ -21,7 +21,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import { features, type DataTableFeatures } from "./data-table-features";
 import { ManagedUser } from "./type";
-import { Loading } from "@/components/loading";
+import {  LoadingOverlay  } from "@/components/loading";
 
 interface Props {
   columns: ColumnDef<DataTableFeatures, ManagedUser>[];
@@ -122,12 +122,8 @@ export function UserDataTable({
 
       {/* overflow-x-auto is the safety net: even with columns hidden per
           breakpoint, this keeps the table from blowing out the page width */}
-      <div className="relative overflow-x-auto">
-        {isLoading && (
-          <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-            <Loading />
-          </div>
-        )}
+      <div className="relative overflow-x-auto" aria-busy={isLoading}>
+  {isLoading && <LoadingOverlay />}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -168,7 +164,7 @@ export function UserDataTable({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  {isLoading ? <Loading /> : "No users found."}
+                  {isLoading ? null : "No users found."}
                 </TableCell>
               </TableRow>
             )}

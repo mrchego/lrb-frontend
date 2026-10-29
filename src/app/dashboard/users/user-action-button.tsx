@@ -15,6 +15,8 @@ import {
   DEMOTE_OWNER_MUTATION,
 } from "./mutation";
 import type { LucideIcon } from "lucide-react";
+import { toast } from "react-toastify";
+import { useConfirm } from "@/components/confirm-provider";
 
 type Action =
   | "activate"
@@ -27,19 +29,23 @@ type Action =
   | "promote"
   | "demote";
 
-const ACTION_MAP: Record<Action, { query: string; field: string }> = {
-  activate: { query: ACTIVATE_USER_MUTATION, field: "activateUser" },
-  deactivate: { query: DEACTIVATE_USER_MUTATION, field: "deactivateUser" },
-  lock: { query: LOCK_USER_MUTATION, field: "lockUser" },
-  unlock: { query: UNLOCK_USER_MUTATION, field: "unlockUser" },
-  delete: { query: DELETE_USER_MUTATION, field: "deleteUser" },
+const ACTION_MAP: Record<
+  Action,
+  { query: string; field: string; success: string }
+> = {
+  activate: { query: ACTIVATE_USER_MUTATION, field: "activateUser", success: "User activated." },
+  deactivate: { query: DEACTIVATE_USER_MUTATION, field: "deactivateUser", success: "User deactivated." },
+  lock: { query: LOCK_USER_MUTATION, field: "lockUser", success: "User locked for 15 minutes." },
+  unlock: { query: UNLOCK_USER_MUTATION, field: "unlockUser", success: "User unlocked." },
+  delete: { query: DELETE_USER_MUTATION, field: "deleteUser", success: "User deleted." },
   forcePasswordReset: {
     query: FORCE_PASSWORD_RESET_MUTATION,
     field: "forcePasswordReset",
+    success: "Password reset required on next login.",
   },
-  restore: { query: RESTORE_USER_MUTATION, field: "restoreUser" },
-  promote: { query: PROMOTE_TO_OWNER_MUTATION, field: "promoteToOwner" },
-  demote: { query: DEMOTE_OWNER_MUTATION, field: "demoteOwner" },
+  restore: { query: RESTORE_USER_MUTATION, field: "restoreUser", success: "User restored." },
+  promote: { query: PROMOTE_TO_OWNER_MUTATION, field: "promoteToOwner", success: "User is now an owner." },
+  demote: { query: DEMOTE_OWNER_MUTATION, field: "demoteOwner", success: "Owner access removed." },
 };
 
 export function UserActionButton({
@@ -65,13 +71,20 @@ export function UserActionButton({
 }) {
   const [submitting, setSubmitting] = useState(false);
 
+  const confirm = useConfirm();
+
   const handleClick = async () => {
     if (disabled || submitting) return;
-    if (!window.confirm(confirmMessage)) return;
+    const ok = await confirm({
+    description: confirmMessage,
+    confirmLabel: label,
+    destructive,
+  });
+  if (!ok) return;
 
     setSubmitting(true);
     try {
-      const { query, field } = ACTION_MAP[action];
+      const { query, field , success } = ACTION_MAP[action];
       const variables =
         action === "lock" ? { userId, durationMinutes: 15 } : { userId };
       // promote/demote return { success, user, errors } — success/errors
@@ -80,12 +93,13 @@ export function UserActionButton({
         Record<string, { success: boolean; errors?: any[] }>
       >(query, variables);
       if (data[field].success) {
+        toast.success(success);
         onDone();
       } else {
-        alert(data[field].errors?.[0]?.message ?? "Action failed.");
+        toast.error(data[field].errors?.[0]?.message ?? "Action failed.");
       }
     } catch (err) {
-      alert(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
     } finally {

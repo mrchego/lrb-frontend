@@ -1,7 +1,8 @@
-// app/dashboard/settings//page.tsx
+// app/dashboard/settings/change-password/page.tsx
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-toastify";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { CHANGE_PASSWORD_MUTATION } from "./mutation";
 import { RequireAuth } from "@/components/require-auth";
@@ -13,17 +14,13 @@ function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
 
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+      toast.error("New passwords do not match.");
       return;
     }
 
@@ -34,15 +31,21 @@ function ChangePasswordForm() {
       }>(CHANGE_PASSWORD_MUTATION, { currentPassword, newPassword });
 
       if (data.changePassword.success) {
-        setSuccess(true);
+        toast.success("Password updated.");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
-        setError(data.changePassword.errors?.[0]?.message ?? "Could not change password.");
+        toast.error(
+          data.changePassword.errors?.[0]?.message ??
+            "Could not change password.",
+          { autoClose: 8000 }, // validation rules can be long to read
+        );
       }
     } catch (err) {
-      setError(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(
+        err instanceof GraphQLError ? err.message : "Something went wrong.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -56,6 +59,7 @@ function ChangePasswordForm() {
           <Label>Current password</Label>
           <Input
             type="password"
+            autoComplete="current-password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
@@ -65,6 +69,7 @@ function ChangePasswordForm() {
           <Label>New password</Label>
           <Input
             type="password"
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
@@ -74,13 +79,12 @@ function ChangePasswordForm() {
           <Label>Confirm new password</Label>
           <Input
             type="password"
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && <p className="text-sm text-green-600">Password updated.</p>}
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? "Saving…" : "Save new password"}
         </Button>

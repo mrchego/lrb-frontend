@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import {
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { UPDATE_PRODUCT_MUTATION } from "./mutation";
 import { ManagedProduct } from "./type";
+import { toast } from "react-toastify";
 
 export function EditProductSheet({
   product,
@@ -16,29 +22,40 @@ export function EditProductSheet({
   product: ManagedProduct;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState({ name: product.name, sku: product.sku, price: product.price });
-  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: product.name,
+    sku: product.sku,
+    price: product.price,
+  });
+
   const [submitting, setSubmitting] = useState(false);
 
-  const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const update =
+    (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
-      const data = await gqlFetch<{ updateProduct: { success: boolean; errors: any[] } }>(
-        UPDATE_PRODUCT_MUTATION,
-        { input: { productId: product.id, ...form } },
-      );
+      const data = await gqlFetch<{
+        updateProduct: { success: boolean; errors: any[] };
+      }>(UPDATE_PRODUCT_MUTATION, {
+        input: { productId: product.id, ...form },
+      });
       if (data.updateProduct.success) {
+        toast.success("Product updated.");
         onSaved();
       } else {
-        setError(data.updateProduct.errors?.[0]?.message ?? "Could not update product.");
+        toast.error(
+          data.updateProduct.errors?.[0]?.message ??
+            "Could not update product.",
+        );
       }
     } catch (err) {
-      setError(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(
+        err instanceof GraphQLError ? err.message : "Something went wrong.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -60,9 +77,13 @@ export function EditProductSheet({
         </div>
         <div>
           <Label>Price</Label>
-          <Input type="number" step="0.01" value={form.price} onChange={update("price")} />
+          <Input
+            type="number"
+            step="0.01"
+            value={form.price}
+            onChange={update("price")}
+          />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
         <SheetFooter>
           <Button type="submit" disabled={submitting}>
             {submitting ? "Saving…" : "Save"}

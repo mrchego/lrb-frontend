@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { CREATE_PRODUCT_MUTATION } from "./mutation";
+import { toast } from "react-toastify";
 
 export function CreateProductSheet({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState({ name: "", sku: "", price: "" });
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -18,7 +18,6 @@ export function CreateProductSheet({ onCreated }: { onCreated: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       const data = await gqlFetch<{ createProduct: { success: boolean; errors: any[] } }>(
@@ -26,13 +25,14 @@ export function CreateProductSheet({ onCreated }: { onCreated: () => void }) {
         { input: { name: form.name, sku: form.sku, price: form.price } },
       );
       if (data.createProduct.success) {
+        toast.success("Product created.");
         setForm({ name: "", sku: "", price: "" });
         onCreated();
       } else {
-        setError(data.createProduct.errors?.[0]?.message ?? "Could not create product.");
+        toast.error(data.createProduct.errors?.[0]?.message ?? "Could not create product.");
       }
     } catch (err) {
-      setError(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -56,7 +56,6 @@ export function CreateProductSheet({ onCreated }: { onCreated: () => void }) {
           <Label>Price</Label>
           <Input type="number" step="0.01" value={form.price} onChange={update("price")} required />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
         <SheetFooter>
           <Button type="submit" disabled={submitting}>
             {submitting ? "Creating…" : "Create"}

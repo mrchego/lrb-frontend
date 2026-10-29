@@ -10,7 +10,10 @@ import { BULK_REVOKE_INVITATIONS_MUTATION } from "./mutation";
 
 import type { Invitation, BulkInvitationActionResult } from "./type";
 import { InvitationRowActions } from "./invitation-row-actions";
-import { summarizeBulkResult } from "../users/bulk-result-summary";
+import { notifyBulkResult } from "../users/bulk-result-summary";
+import { useConfirm } from "@/components/confirm-provider";
+import { toast } from "react-toastify";
+import { Loading } from "@/components/loading";
 
 function statusBadge(inv: Invitation) {
   if (inv.used) {
@@ -68,9 +71,17 @@ export function InvitationsTable({
     });
   };
 
+  const confirm = useConfirm();
+
   const handleBulkRevoke = async () => {
-    if (selected.size === 0) return;
-    if (!window.confirm(`Revoke ${selected.size} invitation(s)?`)) return;
+    if (selected.size === 0 || bulkSubmitting) return;
+    const count = selected.size;
+    const ok = await confirm({
+      description: `Revoke ${count} invitation${count === 1 ? "" : "s"}?`,
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!ok) return;
     setBulkSubmitting(true);
     try {
       const data = await gqlFetch<{
@@ -78,10 +89,10 @@ export function InvitationsTable({
       }>(BULK_REVOKE_INVITATIONS_MUTATION, {
         invitationIds: Array.from(selected),
       });
-      alert(summarizeBulkResult(data.bulkRevokeInvitations, "Revoke"));
+      notifyBulkResult(data.bulkRevokeInvitations, "Revoke", "invitation");
       onRefresh();
     } catch (err) {
-      alert(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
     } finally {
@@ -138,11 +149,8 @@ export function InvitationsTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="p-6 text-center text-muted-foreground"
-                >
-                  Loading…
+                <td colSpan={7} className="h-24">
+                  <Loading variant="inline" size="sm" />
                 </td>
               </tr>
             ) : invitations.length === 0 ? (

@@ -28,7 +28,15 @@ export function BulkActionMenuItem({
   return (
     <DropdownMenuItem
       disabled={submitting || userIds.length === 0}
-      onClick={() => run(action, userIds, confirmMessage, lockDurationMinutes)}
+      onClick={() =>
+        run({
+          action,
+          userIds,
+          confirmMessage,
+          destructive,
+          lockDurationMinutes,
+        })
+      }
       className={destructive ? "text-red-600 focus:text-red-600" : undefined}
     >
       <Icon className="mr-2 h-4 w-4" />

@@ -1,26 +1,35 @@
+import { toast, type ToastOptions } from "react-toastify";
 import { BulkUserActionResult } from "./type";
 
-export function summarizeBulkResult(
+export function notifyBulkResult(
   result: BulkUserActionResult,
   verb: string,
-): string {
+  noun = "user",
+): void {
   const okCount = result.succeededIds.length;
   const failCount = result.failed.length;
+  const plural = (n: number) => `${noun}${n === 1 ? "" : "s"}`;
 
   if (failCount === 0) {
-    return `${verb}: ${okCount} user${okCount === 1 ? "" : "s"} updated.`;
+    toast.success(`${verb}: ${okCount} ${plural(okCount)} updated.`);
+    return;
   }
 
-  const reasons = result.failed
-    .map((f) => `• ${f.reason}`)
-    .filter((v, i, arr) => arr.indexOf(v) === i); // dedupe repeated reasons
+  const reasons = Array.from(new Set(result.failed.map((f) => f.reason)));
+  const reasonLines = reasons.map((r) => `• ${r}`).join("\n");
+  const options: ToastOptions = {
+    style: { whiteSpace: "pre-line" },
+    autoClose: 8000,
+  };
 
-  const lines = [
-    `${verb}: ${okCount} succeeded, ${failCount} skipped.`,
-    "",
-    ...reasons,
-  ];
-  return lines.join("\n");
+  if (okCount === 0) {
+    toast.error(`${verb}: no ${noun}s were updated.\n${reasonLines}`, options);
+  } else {
+    toast.warning(
+      `${verb}: ${okCount} succeeded, ${failCount} skipped.\n${reasonLines}`,
+      options,
+    );
+  }
 }
 
 

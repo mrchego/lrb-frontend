@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { RequireSuperuser } from "@/components/require-superuser";
-import { gqlFetch } from "@/lib/graphql-client";
+import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,8 @@ import {
   StaffMember,
   StaffMemberConnection,
 } from "./type";
+import { toast } from "react-toastify";
+import { Loading } from "@/components/loading";
 
 type Role = { id: string; name: string };
 
@@ -77,51 +79,69 @@ function StaffPageContent() {
     roleId: string | null;
   }>({ email: "", firstName: "", lastName: "", canLogin: true, roleId: null });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const loadRoles = () =>
-    gqlFetch<{ roles: Role[] }>(ROLES_QUERY).then((res) => setRoles(res.roles));
+  const showError = (err: unknown) =>
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+
+  const loadRoles = async () => {
+    try {
+      const res = await gqlFetch<{ roles: Role[] }>(ROLES_QUERY);
+      setRoles(res.roles);
+    } catch (err) {
+      showError(err);
+    }
+  };
 
   const STAFF_TAB_PAGE_SIZE = 100;
 
   const loadMembers = async () => {
     setLoadingMembers(true);
-    const res = await gqlFetch<{ staffMembers: StaffMemberConnection }>(
-      STAFF_MEMBERS_QUERY,
-      {
-        limit: STAFF_TAB_PAGE_SIZE,
-        offset: 0,
-      },
-    );
-    setMembers(res.staffMembers.items);
-    setLoadingMembers(false);
+    try {
+      const res = await gqlFetch<{ staffMembers: StaffMemberConnection }>(
+        STAFF_MEMBERS_QUERY,
+        { limit: STAFF_TAB_PAGE_SIZE, offset: 0 },
+      );
+      setMembers(res.staffMembers.items);
+    } catch (err) {
+      showError(err);
+    } finally {
+      setLoadingMembers(false);
+    }
   };
 
   const loadInvitations = async (filter = invitationFilter) => {
     setLoadingInvitations(true);
-    const used = filter === "all" ? undefined : filter === "accepted";
-    const res = await gqlFetch<{ invitations: InvitationConnection }>(
-      INVITATIONS_QUERY,
-      {
-        used,
-        limit: STAFF_TAB_PAGE_SIZE,
-        offset: 0,
-      },
-    );
-    setInvitations(res.invitations.items);
-    setLoadingInvitations(false);
+    try {
+      const used = filter === "all" ? undefined : filter === "accepted";
+      const res = await gqlFetch<{ invitations: InvitationConnection }>(
+        INVITATIONS_QUERY,
+        { used, limit: STAFF_TAB_PAGE_SIZE, offset: 0 },
+      );
+      setInvitations(res.invitations.items);
+    } catch (err) {
+      showError(err);
+    } finally {
+      setLoadingInvitations(false);
+    }
   };
 
   const loadRecordsOnly = async () => {
     setLoadingRecordsOnly(true);
-    const res = await gqlFetch<{ users: UserConnection }>(USERS_QUERY, {
-      canLogin: false,
-      limit: STAFF_TAB_PAGE_SIZE,
-      offset: 0,
-    });
-    setRecordsOnly(res.users.items);
-    setLoadingRecordsOnly(false);
+    try {
+      const res = await gqlFetch<{ users: UserConnection }>(USERS_QUERY, {
+        canLogin: false,
+        limit: STAFF_TAB_PAGE_SIZE,
+        offset: 0,
+      });
+      setRecordsOnly(res.users.items);
+    } catch (err) {
+      showError(err);
+    } finally {
+      setLoadingRecordsOnly(false);
+    }
   };
 
   useEffect(() => {
@@ -147,31 +167,37 @@ function StaffPageContent() {
 
   const handleInvite = async () => {
     setSubmitting(true);
-    setError(null);
-    const data = await gqlFetch<{
-      inviteStaff: { success: boolean; invitation: any; errors: any[] };
-    }>(INVITE_STAFF_MUTATION, { ...form });
-    if (data.inviteStaff.success) {
-      setSuccess(
-        form.canLogin
-          ? `Invitation sent to ${form.email}`
-          : `${form.firstName} ${form.lastName} added as a staff record (no system login).`,
-      );
-      setOpen(false);
-      await refreshAfterInvite(form.canLogin);
-      setForm({
-        email: "",
-        firstName: "",
-        lastName: "",
-        canLogin: true,
-        roleId: null,
-      });
-    } else {
-      setError(data.inviteStaff.errors?.[0]?.message ?? "Failed to add staff.");
-    }
-    setSubmitting(false);
-  };
+    try {
+      const data = await gqlFetch<{
+        inviteStaff: { success: boolean; invitation: any; errors: any[] };
+      }>(INVITE_STAFF_MUTATION, { ...form });
 
+      if (data.inviteStaff.success) {
+        toast.success(
+          form.canLogin
+            ? `Invitation sent to ${form.email}.`
+            : `${form.firstName} ${form.lastName} added as a staff record (no system login).`,
+        );
+        setOpen(false);
+        await refreshAfterInvite(form.canLogin);
+        setForm({
+          email: "",
+          firstName: "",
+          lastName: "",
+          canLogin: true,
+          roleId: null,
+        });
+      } else {
+        toast.error(
+          data.inviteStaff.errors?.[0]?.message ?? "Failed to add staff.",
+        );
+      }
+    } catch (err) {
+      showError(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
   if (!user) return null;
 
   return (
@@ -258,7 +284,6 @@ function StaffPageContent() {
                 </div>
               )}
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
             <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
               <Button
                 variant="outline"
@@ -334,7 +359,7 @@ function StaffPageContent() {
 
         <TabsContent value="records" className="mt-4">
           {loadingRecordsOnly ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <Loading variant="inline" size="sm" className="py-12" />
           ) : recordsOnly.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Everyone with a staff record can already log in.

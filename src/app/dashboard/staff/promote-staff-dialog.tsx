@@ -1,7 +1,7 @@
 // components/promote-staff-dialog.tsx
 "use client";
 import { useState } from "react";
-import { gqlFetch } from "@/lib/graphql-client";
+import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { PROMOTE_STAFF_TO_LOGIN_MUTATION } from "./mutation";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "react-toastify";
 
 type Role = { id: string; name: string };
 
@@ -24,17 +25,28 @@ export function PromoteStaffDialog({
   const handlePromote = async () => {
     if (!roleId) return;
     setSubmitting(true);
-    setError(null);
+    try {
     const data = await gqlFetch<{
       promoteStaffToLogin: { success: boolean; errors: any[] };
     }>(PROMOTE_STAFF_TO_LOGIN_MUTATION, { userId, roleId });
+
     if (data.promoteStaffToLogin.success) {
+      toast.success("Invitation sent.");
       setOpen(false);
       onDone();
     } else {
-      setError(data.promoteStaffToLogin.errors?.[0]?.message ?? "Failed to send invitation.");
+      toast.error(
+        data.promoteStaffToLogin.errors?.[0]?.message ??
+          "Failed to send invitation.",
+      );
     }
+  } catch (err) {
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+  } finally {
     setSubmitting(false);
+  }
   };
 
   return (

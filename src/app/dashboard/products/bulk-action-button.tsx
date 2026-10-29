@@ -2,7 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
-import { BulkProductAction, useBulkProductAction } from "./use-bulk-product-action";
+import {
+  BulkProductAction,
+  useBulkProductAction,
+} from "./use-bulk-product-action";
 
 export function BulkProductActionButton({
   action,
@@ -28,7 +31,7 @@ export function BulkProductActionButton({
       size="sm"
       variant={destructive ? "destructive" : "secondary"}
       disabled={submitting || productIds.length === 0}
-      onClick={() => run(action, productIds, confirmMessage)}
+      onClick={() => run({ action, productIds, confirmMessage, destructive })}
       className="shrink-0"
     >
       <Icon className="h-4 w-4 mr-1.5" />

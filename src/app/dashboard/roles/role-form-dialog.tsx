@@ -15,6 +15,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "react-toastify";
 
 export function RoleFormDialog({
   mode,
@@ -49,15 +50,13 @@ export function RoleFormDialog({
     new Set(role?.permissions.map((p) => p.codename) ?? []),
   );
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setName(role?.name ?? "");
-      setSelected(new Set(role?.permissions.map((p) => p.codename) ?? []));
-      setError(null);
-    }
-  }, [open, role]);
+useEffect(() => {
+  if (open) {
+    setName(role?.name ?? "");
+    setSelected(new Set(role?.permissions.map((p) => p.codename) ?? []));
+  }
+}, [open, role]);
 
   const grouped = permissions.reduce<Record<string, Permission[]>>((acc, p) => {
     (acc[p.category] ??= []).push(p);
@@ -72,51 +71,54 @@ export function RoleFormDialog({
     });
   };
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      if (mode === "create") {
-        const data = await gqlFetch<{
-          createRole: { success: boolean; errors: any[] };
-        }>(CREATE_ROLE_MUTATION, {
-          name,
-          permissionCodenames: Array.from(selected),
-        });
-        if (!data.createRole.success) {
-          setError(
-            data.createRole.errors?.[0]?.message ?? "Failed to create role.",
-          );
-          return;
-        }
-      } else {
-        const data = await gqlFetch<{
-          updateRole: { success: boolean; errors: any[] };
-        }>(UPDATE_ROLE_MUTATION, {
-          input: {
-            roleId: role!.id,
-            name,
-            permissionCodenames: Array.from(selected),
-          },
-        });
-        if (!data.updateRole.success) {
-          setError(
-            data.updateRole.errors?.[0]?.message ?? "Failed to update role.",
-          );
-          return;
-        }
-      }
-      setOpen(false);
-      onSaved();
-    } catch (err) {
-      setError(
-        err instanceof GraphQLError ? err.message : "Something went wrong.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+ const handleSubmit = async () => {
+  const trimmed = name.trim();
+  if (!trimmed || submitting) return;
 
+  setSubmitting(true);
+  try {
+    if (mode === "create") {
+      const data = await gqlFetch<{
+        createRole: { success: boolean; errors: any[] };
+      }>(CREATE_ROLE_MUTATION, {
+        name: trimmed,
+        permissionCodenames: Array.from(selected),
+      });
+      if (!data.createRole.success) {
+        toast.error(
+          data.createRole.errors?.[0]?.message ?? "Failed to create role.",
+        );
+        return; // keep the dialog open so the form can be fixed
+      }
+      toast.success(`Role "${trimmed}" created.`);
+    } else {
+      const data = await gqlFetch<{
+        updateRole: { success: boolean; errors: any[] };
+      }>(UPDATE_ROLE_MUTATION, {
+        input: {
+          roleId: role!.id,
+          name: trimmed,
+          permissionCodenames: Array.from(selected),
+        },
+      });
+      if (!data.updateRole.success) {
+        toast.error(
+          data.updateRole.errors?.[0]?.message ?? "Failed to update role.",
+        );
+        return;
+      }
+      toast.success(`Role "${trimmed}" updated.`);
+    }
+    setOpen(false);
+    onSaved();
+  } catch (err) {
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && (
@@ -158,13 +160,12 @@ export function RoleFormDialog({
               </div>
             ))}
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting || !name}>
+          <Button onClick={handleSubmit} disabled={submitting || !name.trim()}>
             {submitting ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>

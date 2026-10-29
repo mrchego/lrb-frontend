@@ -47,7 +47,7 @@ export const DEACTIVATE_PRODUCT_MUTATION = `
 export const BULK_ACTIVATE_PRODUCTS_MUTATION = `
   mutation BulkActivateProducts($productIds: [ID!]!) {
     bulkActivateProducts(input: { productIds: $productIds }) {
-      success succeededIds failed { productId reason }
+      success succeededIds failed { itemId reason }
     }
   }
 `;
@@ -55,7 +55,7 @@ export const BULK_ACTIVATE_PRODUCTS_MUTATION = `
 export const BULK_DEACTIVATE_PRODUCTS_MUTATION = `
   mutation BulkDeactivateProducts($productIds: [ID!]!) {
     bulkDeactivateProducts(input: { productIds: $productIds }) {
-      success succeededIds failed { productId reason }
+      success succeededIds failed { itemId reason }
     }
   }
 `;
@@ -63,7 +63,7 @@ export const BULK_DEACTIVATE_PRODUCTS_MUTATION = `
 export const BULK_DELETE_PRODUCTS_MUTATION = `
   mutation BulkDeleteProducts($productIds: [ID!]!) {
     bulkDeleteProducts(input: { productIds: $productIds }) {
-      success succeededIds failed { productId reason }
+      success succeededIds failed { itemId reason }
     }
   }
 `;

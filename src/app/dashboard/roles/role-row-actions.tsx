@@ -15,6 +15,8 @@ import { Permission, Role } from "./type";
 import { MoreHorizontal, Edit, Copy, Trash2, Users } from "lucide-react";
 import { RoleFormDialog } from "./role-form-dialog";
 import { CloneRoleDialog } from "./clone-role-dialog";
+import { useConfirm } from "@/components/confirm-provider";
+import { toast } from "react-toastify";
 
 export function RoleRowActions({
   role,
@@ -28,31 +30,48 @@ export function RoleRowActions({
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [cloneOpen, setCloneOpen] = useState(false);
+  const confirm = useConfirm();
+  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
+    if (deleting) return;
+
+    // Pre-check: saves a pointless dialog and request. The server still enforces this.
     if (role.staffCount > 0) {
-      alert(
-        `Cannot delete "${role.name}" — reassign the ${role.staffCount} staff member(s) using it first.`,
+      toast.error(
+        `Cannot delete "${role.name}". Reassign the ${role.staffCount} staff member${role.staffCount === 1 ? "" : "s"} using it first.`,
       );
       return;
     }
-    if (
-      !window.confirm(`Delete the role "${role.name}"? This cannot be undone.`)
-    )
-      return;
+
+    const ok = await confirm({
+      title: "Delete role?",
+      description: `Delete the role "${role.name}"? This cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setDeleting(true);
     try {
       const data = await gqlFetch<{
         deleteRole: { success: boolean; errors: any[] };
       }>(DELETE_ROLE_MUTATION, { roleId: role.id });
+
       if (data.deleteRole.success) {
+        toast.success(`Role "${role.name}" deleted.`);
         onChanged();
       } else {
-        alert(data.deleteRole.errors?.[0]?.message ?? "Failed to delete role.");
+        toast.error(
+          data.deleteRole.errors?.[0]?.message ?? "Failed to delete role.",
+        );
       }
     } catch (err) {
-      alert(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -85,6 +104,7 @@ export function RoleRowActions({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleDelete}
+            disabled={deleting}
             className="text-red-600 focus:text-red-600"
           >
             <Trash2 className="mr-2 h-4 w-4" />

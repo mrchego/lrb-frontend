@@ -21,7 +21,7 @@ export type ManagedUser = {
 
 export type UserConnection = { items: ManagedUser[]; totalCount: number };
 
-export type BulkActionFailure = { userId: string; reason: string };
+export type BulkActionFailure = { itemId: string; reason: string };
 
 export type BulkUserActionResult = {
   success: boolean;

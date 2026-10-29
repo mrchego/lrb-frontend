@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resolveMediaUrl } from "@/lib/media";
 import { Loading } from "@/components/loading";
+import { toast } from "react-toastify";
 
 type CompanySettingsEditable = Omit<CompanySettings, "id">;
 
@@ -70,8 +71,6 @@ function CompanyProfileForm({
   const [logoDark, setLogoDark] = useState<File | null>(null);
   const [logoLightPreview, setLogoLightPreview] = useState<string | null>(null);
   const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const update =
@@ -103,67 +102,63 @@ function CompanyProfileForm({
   }, [logoLightPreview, logoDarkPreview]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-    setSubmitting(true);
+  e.preventDefault();
+  setSubmitting(true);
 
-    const variables: any = { input: { ...form } };
-    const files: Record<string, File> = {};
-    if (logoLight) {
-      variables.input.logoLight = null;
-      files["variables.input.logoLight"] = logoLight;
-    }
-    if (logoDark) {
-      variables.input.logoDark = null;
-      files["variables.input.logoDark"] = logoDark;
-    }
+  const variables: any = { input: { ...form } };
+  const files: Record<string, File> = {};
+  if (logoLight) {
+    variables.input.logoLight = null;
+    files["variables.input.logoLight"] = logoLight;
+  }
+  if (logoDark) {
+    variables.input.logoDark = null;
+    files["variables.input.logoDark"] = logoDark;
+  }
 
-    try {
-      const data = Object.keys(files).length
-        ? await gqlUpload<{
-            updateCompany: {
-              success: boolean;
-              company: Company;
-              errors: any[];
-            };
-          }>(UPDATE_COMPANY_MUTATION, variables, files)
-        : await gqlFetch<{
-            updateCompany: {
-              success: boolean;
-              company: Company;
-              errors: any[];
-            };
-          }>(UPDATE_COMPANY_MUTATION, variables);
+  try {
+    const data = Object.keys(files).length
+      ? await gqlUpload<{
+          updateCompany: {
+            success: boolean;
+            company: Company;
+            errors: any[];
+          };
+        }>(UPDATE_COMPANY_MUTATION, variables, files)
+      : await gqlFetch<{
+          updateCompany: {
+            success: boolean;
+            company: Company;
+            errors: any[];
+          };
+        }>(UPDATE_COMPANY_MUTATION, variables);
 
-      if (data.updateCompany.success) {
-        onSaved(data.updateCompany.company); // <-- updates shared context, navbar re-renders instantly
-        setSuccess(true);
-        setLogoLight(null);
-        setLogoDark(null);
-        if (logoLightPreview) {
-          URL.revokeObjectURL(logoLightPreview);
-          setLogoLightPreview(null);
-        }
-        if (logoDarkPreview) {
-          URL.revokeObjectURL(logoDarkPreview);
-          setLogoDarkPreview(null);
-        }
-      } else {
-        setError(
-          data.updateCompany.errors?.[0]?.message ??
-            "Could not update company.",
-        );
+    if (data.updateCompany.success) {
+      toast.success("Company profile updated.");
+      onSaved(data.updateCompany.company);
+      setLogoLight(null);
+      setLogoDark(null);
+      if (logoLightPreview) {
+        URL.revokeObjectURL(logoLightPreview);
+        setLogoLightPreview(null);
       }
-    } catch (err) {
-      setError(
-        err instanceof GraphQLError ? err.message : "Something went wrong.",
+      if (logoDarkPreview) {
+        URL.revokeObjectURL(logoDarkPreview);
+        setLogoDarkPreview(null);
+      }
+    } else {
+      toast.error(
+        data.updateCompany.errors?.[0]?.message ?? "Could not update company.",
       );
-    } finally {
-      setSubmitting(false);
     }
-  };
-
+  } catch (err) {
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4">Company profile</h2>
@@ -234,10 +229,6 @@ function CompanyProfileForm({
             )}
           </div>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && (
-          <p className="text-sm text-green-600">Company profile updated.</p>
-        )}
         <Button type="submit" disabled={submitting}>
           {submitting ? "Saving…" : "Save profile"}
         </Button>
@@ -277,40 +268,36 @@ function CompanyPreferencesForm({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-    setSubmitting(true);
-    try {
-      const data = await gqlFetch<{
-        updateCompanySettings: {
-          success: boolean;
-          settings: CompanySettings;
-          errors: any[];
-        };
-      }>(UPDATE_COMPANY_SETTINGS_MUTATION, { input: form });
+  e.preventDefault();
+  setSubmitting(true);
+  try {
+    const data = await gqlFetch<{
+      updateCompanySettings: {
+        success: boolean;
+        settings: CompanySettings;
+        errors: any[];
+      };
+    }>(UPDATE_COMPANY_SETTINGS_MUTATION, { input: form });
 
-      if (data.updateCompanySettings.success) {
-        onSaved(data.updateCompanySettings.settings);
-        const { id: _id, ...freshEditable } =
-          data.updateCompanySettings.settings;
-        setForm(freshEditable);
-        setSuccess(true);
-      } else {
-        setError(
-          data.updateCompanySettings.errors?.[0]?.message ??
-            "Could not update settings.",
-        );
-      }
-    } catch (err) {
-      setError(
-        err instanceof GraphQLError ? err.message : "Something went wrong.",
+    if (data.updateCompanySettings.success) {
+      toast.success("Preferences updated.");
+      onSaved(data.updateCompanySettings.settings);
+      const { id: _id, ...freshEditable } = data.updateCompanySettings.settings;
+      setForm(freshEditable);
+    } else {
+      toast.error(
+        data.updateCompanySettings.errors?.[0]?.message ??
+          "Could not update settings.",
       );
-    } finally {
-      setSubmitting(false);
     }
-  };
-
+  } catch (err) {
+    toast.error(
+      err instanceof GraphQLError ? err.message : "Something went wrong.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4">Preferences</h2>

@@ -30,7 +30,15 @@ export function BulkActionButton({
       size="sm"
       variant={destructive ? "destructive" : "secondary"}
       disabled={submitting || userIds.length === 0}
-      onClick={() => run(action, userIds, confirmMessage, lockDurationMinutes)}
+      onClick={() =>
+        run({
+          action,
+          userIds,
+          confirmMessage,
+          destructive,
+          lockDurationMinutes,
+        })
+      }
       className="shrink-0"
     >
       <Icon className="h-4 w-4 mr-1.5" />

@@ -60,7 +60,7 @@ export const REMOVE_ROLE_MUTATION = `
 export const BULK_ASSIGN_ROLE_MUTATION = `
   mutation BulkAssignRole($userIds: [ID!]!, $roleId: ID!) {
     bulkAssignRole(input: { userIds: $userIds, roleId: $roleId }) {
-      success succeededIds failed { userId reason }
+      success succeededIds failed { itemId reason }
     }
   }
 `;

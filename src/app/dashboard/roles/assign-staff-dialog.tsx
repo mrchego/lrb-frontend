@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { toast } from "react-toastify";
+import { toast, type ToastOptions } from "react-toastify";
+import { Loading } from "@/components/loading";
 
 export function AssignStaffDialog({
   roleId,
@@ -35,19 +36,41 @@ export function AssignStaffDialog({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Set());
     setSearch("");
-    gqlFetch<{ users: AssignableUser[] }>(USERS_FOR_ROLE_ASSIGNMENT_QUERY).then(
-      (d) =>
-        // Superusers already have every permission implicitly — assigning a
-        // role to them is a no-op the backend allows, but hiding them avoids confusion.
-        setUsers(
-          d.users.filter((u) => !u.isSuperuser && !existingUserIds.has(u.id)),
-        ),
+
+    let cancelled = false;
+    setLoadingUsers(true);
+
+    gqlFetch<{ users: { items: AssignableUser[]; totalCount: number } }>(
+  USERS_FOR_ROLE_ASSIGNMENT_QUERY,
+  { limit: 100, offset: 0 },
+)
+  .then((d) => {
+    if (cancelled) return;
+    setUsers(
+      d.users.items.filter(
+        (u) => !u.isSuperuser && !existingUserIds.has(u.id),
+      ),
     );
+  })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(
+          err instanceof GraphQLError ? err.message : "Could not load staff.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingUsers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, existingUserIds]);
 
   const filtered = users.filter(
@@ -65,7 +88,7 @@ export function AssignStaffDialog({
   };
 
   const handleAssign = async () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || submitting) return;
     setSubmitting(true);
     try {
       const data = await gqlFetch<{ bulkAssignRole: BulkRoleActionResult }>(
@@ -73,16 +96,34 @@ export function AssignStaffDialog({
         { userIds: Array.from(selected), roleId },
       );
       const { succeededIds, failed } = data.bulkAssignRole;
-      if (failed.length > 0) {
-        toast.error(
-          `Assigned to ${succeededIds.length}, skipped ${failed.length}:\n` +
-            failed.map((f) => `• ${f.reason}`).join("\n"),
+      const okCount = succeededIds.length;
+
+      if (failed.length === 0) {
+        toast.success(
+          `${okCount} staff member${okCount === 1 ? "" : "s"} assigned to ${roleName}.`,
+        );
+      } else {
+        const reasons = Array.from(new Set(failed.map((f) => f.reason)));
+        const options: ToastOptions = {
+          style: { whiteSpace: "pre-line" },
+          autoClose: 8000,
+        };
+        const lines = reasons.map((r) => `• ${r}`).join("\n");
+
+        if (okCount === 0) {
+          toast.error(`No one was assigned.\n${lines}`, options);
+          return; // keep the dialog open so the selection can be fixed
+        }
+        toast.warning(
+          `Assigned ${okCount}, skipped ${failed.length}.\n${lines}`,
+          options,
         );
       }
+
       onOpenChange(false);
       onAssigned();
     } catch (err) {
-      alert(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
     } finally {
@@ -102,20 +143,31 @@ export function AssignStaffDialog({
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="space-y-1 mt-2">
-          {filtered.map((u) => (
-            <label key={u.id} className="flex items-center gap-2 text-sm py-1">
-              <Checkbox
-                checked={selected.has(u.id)}
-                onCheckedChange={() => toggle(u.id)}
-              />
-              <span>{u.fullName || u.email}</span>
-              <span className="text-xs text-muted-foreground">{u.email}</span>
-            </label>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2">
-              No matching staff.
-            </p>
+          {loadingUsers ? (
+            <Loading variant="inline" size="sm" className="py-8" />
+          ) : (
+            <>
+              {filtered.map((u) => (
+                <label
+                  key={u.id}
+                  className="flex items-center gap-2 text-sm py-1"
+                >
+                  <Checkbox
+                    checked={selected.has(u.id)}
+                    onCheckedChange={() => toggle(u.id)}
+                  />
+                  <span>{u.fullName || u.email}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {u.email}
+                  </span>
+                </label>
+              ))}
+              {filtered.length === 0 && (
+                <p className="text-sm text-muted-foreground py-2">
+                  No matching staff.
+                </p>
+              )}
+            </>
           )}
         </div>
         <DialogFooter>
@@ -133,7 +185,6 @@ export function AssignStaffDialog({
     </Dialog>
   );
 }
-
 
 // Big Picture
 // This code is part of a component that lets you assign a role to users.

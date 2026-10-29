@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { ADMIN_UPDATE_USER_MUTATION } from "./mutation";
 import { ManagedUser } from "./type";
+import { toast } from "react-toastify";
 
 export function EditUserSheet({
   user,
@@ -42,14 +43,15 @@ export function EditUserSheet({
         adminUpdateUser: { success: boolean; errors: any[] };
       }>(ADMIN_UPDATE_USER_MUTATION, { input: { userId: user.id, ...form } });
       if (data.adminUpdateUser.success) {
+        toast.success("User updated.");
         onSaved();
       } else {
-        setError(
+        toast.error(
           data.adminUpdateUser.errors?.[0]?.message ?? "Could not update user.",
         );
       }
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
     } finally {
@@ -75,7 +77,6 @@ export function EditUserSheet({
           <Label>Phone</Label>
           <Input value={form.phone} onChange={update("phone")} />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
         <SheetFooter>
           <Button type="submit" disabled={submitting}>
             {submitting ? "Saving…" : "Save"}
