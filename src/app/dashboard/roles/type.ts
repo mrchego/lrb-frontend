@@ -13,6 +13,7 @@ export type AssignableUser = {
   email: string;
   fullName: string;
   isSuperuser: boolean;
+  roles: { id: string; name: string }[];
 };
 
 export type BulkRoleActionResult = {

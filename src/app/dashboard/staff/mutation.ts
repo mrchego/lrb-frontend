@@ -50,7 +50,7 @@ export const INVITE_STAFF_MUTATION = `
 export const BULK_REVOKE_INVITATIONS_MUTATION = `
   mutation BulkRevokeInvitations($invitationIds: [ID!]!) {
     bulkRevokeInvitations(input: { invitationIds: $invitationIds }) {
-      success succeededIds failed { userId reason }
+      success succeededIds failed { itemId reason }
     }
   }
 `;

@@ -32,5 +32,5 @@ export type InvitationConnection = { items: Invitation[]; totalCount: number };
 export type BulkInvitationActionResult = {
   success: boolean;
   succeededIds: string[];
-  failed: { userId: string; reason: string }[];
+  failed: { itemId: string; reason: string }[];
 };

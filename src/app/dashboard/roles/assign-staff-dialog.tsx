@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { BULK_ASSIGN_ROLE_MUTATION } from "./mutation";
 import { USERS_FOR_ROLE_ASSIGNMENT_QUERY } from "./query";
@@ -17,6 +17,10 @@ import {
 import { toast, type ToastOptions } from "react-toastify";
 import { Loading } from "@/components/loading";
 
+const PAGE_SIZE = 50;
+
+type UsersPage = { users: { items: AssignableUser[]; totalCount: number } };
+
 export function AssignStaffDialog({
   roleId,
   roleName,
@@ -33,51 +37,88 @@ export function AssignStaffDialog({
   onAssigned: () => void;
 }) {
   const [users, setUsers] = useState<AssignableUser[]>([]);
+  const [fetchedCount, setFetchedCount] = useState(0); // raw count from the server
+  const [totalCount, setTotalCount] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
+  // Bumped on every new search; responses from older searches are discarded.
+  const requestId = useRef(0);
+
+  const showError = (err: unknown, fallback: string) =>
+    toast.error(err instanceof GraphQLError ? err.message : fallback);
+
+  // Debounce typing so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reset when the dialog opens. Selection survives searches, so the owner
+  // can search "ann", tick her, search "bob", tick him, then assign both.
   useEffect(() => {
     if (!open) return;
     setSelected(new Set());
     setSearch("");
+    setDebouncedSearch("");
+  }, [open]);
 
-    let cancelled = false;
+  // First page, re-run whenever the search term changes.
+  useEffect(() => {
+    if (!open) return;
+    const id = ++requestId.current;
     setLoadingUsers(true);
 
-    gqlFetch<{ users: { items: AssignableUser[]; totalCount: number } }>(
-  USERS_FOR_ROLE_ASSIGNMENT_QUERY,
-  { limit: 100, offset: 0 },
-)
-  .then((d) => {
-    if (cancelled) return;
-    setUsers(
-      d.users.items.filter(
-        (u) => !u.isSuperuser && !existingUserIds.has(u.id),
-      ),
-    );
-  })
+    gqlFetch<UsersPage>(USERS_FOR_ROLE_ASSIGNMENT_QUERY, {
+      search: debouncedSearch || undefined,
+      canLogin: true,
+      limit: PAGE_SIZE,
+      offset: 0,
+    })
+      .then((d) => {
+        if (id !== requestId.current) return;
+        setUsers(d.users.items.filter((u) => !u.isSuperuser));
+        setFetchedCount(d.users.items.length);
+        setTotalCount(d.users.totalCount);
+      })
       .catch((err) => {
-        if (cancelled) return;
-        toast.error(
-          err instanceof GraphQLError ? err.message : "Could not load staff.",
-        );
+        if (id === requestId.current) showError(err, "Could not load staff.");
       })
       .finally(() => {
-        if (!cancelled) setLoadingUsers(false);
+        if (id === requestId.current) setLoadingUsers(false);
       });
+  }, [open, debouncedSearch]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [open, existingUserIds]);
+  const hasMore = fetchedCount < totalCount;
 
-  const filtered = users.filter(
-    (u) =>
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.fullName.toLowerCase().includes(search.toLowerCase()),
-  );
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    const id = requestId.current; // if the search changes meanwhile, id goes stale
+    setLoadingMore(true);
+    try {
+      const d = await gqlFetch<UsersPage>(USERS_FOR_ROLE_ASSIGNMENT_QUERY, {
+        search: debouncedSearch || undefined,
+        canLogin: true,
+        limit: PAGE_SIZE,
+        offset: fetchedCount,
+      });
+      if (id !== requestId.current) return;
+      setUsers((prev) => [
+        ...prev,
+        ...d.users.items.filter((u) => !u.isSuperuser),
+      ]);
+      setFetchedCount((c) => c + d.users.items.length);
+      setTotalCount(d.users.totalCount);
+    } catch (err) {
+      showError(err, "Could not load more staff.");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -100,7 +141,7 @@ export function AssignStaffDialog({
 
       if (failed.length === 0) {
         toast.success(
-          `${okCount} staff member${okCount === 1 ? "" : "s"} assigned to ${roleName}.`,
+          `${okCount} staff member${okCount === 1 ? "" : "s"} added to ${roleName}.`,
         );
       } else {
         const reasons = Array.from(new Set(failed.map((f) => f.reason)));
@@ -111,11 +152,11 @@ export function AssignStaffDialog({
         const lines = reasons.map((r) => `• ${r}`).join("\n");
 
         if (okCount === 0) {
-          toast.error(`No one was assigned.\n${lines}`, options);
+          toast.error(`No one was added.\n${lines}`, options);
           return; // keep the dialog open so the selection can be fixed
         }
         toast.warning(
-          `Assigned ${okCount}, skipped ${failed.length}.\n${lines}`,
+          `Added ${okCount}, skipped ${failed.length}.\n${lines}`,
           options,
         );
       }
@@ -123,9 +164,7 @@ export function AssignStaffDialog({
       onOpenChange(false);
       onAssigned();
     } catch (err) {
-      toast.error(
-        err instanceof GraphQLError ? err.message : "Something went wrong.",
-      );
+      showError(err, "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -135,10 +174,10 @@ export function AssignStaffDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Assign staff to {roleName}</DialogTitle>
+          <DialogTitle>Add staff to {roleName}</DialogTitle>
         </DialogHeader>
         <Input
-          placeholder="Search staff…"
+          placeholder="Search by name or email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -147,25 +186,54 @@ export function AssignStaffDialog({
             <Loading variant="inline" size="sm" className="py-8" />
           ) : (
             <>
-              {filtered.map((u) => (
-                <label
-                  key={u.id}
-                  className="flex items-center gap-2 text-sm py-1"
-                >
-                  <Checkbox
-                    checked={selected.has(u.id)}
-                    onCheckedChange={() => toggle(u.id)}
-                  />
-                  <span>{u.fullName || u.email}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {u.email}
-                  </span>
-                </label>
-              ))}
-              {filtered.length === 0 && (
+              {users.map((u) => {
+                const alreadyIn = existingUserIds.has(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className={`flex items-start gap-2 text-sm py-1.5 ${
+                      alreadyIn ? "opacity-60" : ""
+                    }`}
+                  >
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={alreadyIn || selected.has(u.id)}
+                      disabled={alreadyIn}
+                      onCheckedChange={() => toggle(u.id)}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2">
+                        <span>{u.fullName || u.email}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {u.email}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {alreadyIn
+                          ? `Already in ${roleName}`
+                          : u.roles.length > 0
+                            ? `Current: ${u.roles.map((r) => r.name).join(", ")}`
+                            : "No roles yet"}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+              {users.length === 0 && (
                 <p className="text-sm text-muted-foreground py-2">
                   No matching staff.
                 </p>
+              )}
+              {hasMore && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? "Loading…" : "Load more"}
+                </Button>
               )}
             </>
           )}
@@ -178,7 +246,7 @@ export function AssignStaffDialog({
             onClick={handleAssign}
             disabled={submitting || selected.size === 0}
           >
-            {submitting ? "Assigning…" : `Assign (${selected.size})`}
+            {submitting ? "Adding…" : `Add (${selected.size})`}
           </Button>
         </DialogFooter>
       </DialogContent>
