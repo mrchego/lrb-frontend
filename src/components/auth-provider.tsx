@@ -9,7 +9,7 @@ import {
   useEffect,
   useState,
 } from "react";
-
+ import { useSWRConfig } from "swr";
 
 type ImageRef = { url: string; name: string } | null;
 
@@ -45,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+   const { mutate: swrMutate } = useSWRConfig();
+   const clearCache = () => swrMutate(() => true, undefined, { revalidate: false });
 
   const fetchPermissions = async (userId: string) => {
     try {
@@ -96,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: { success: boolean; user: User | null; errors: any[] };
     }>(LOGIN_MUTATION, { email, password });
     if (data.login.success) {
+      await clearCache();
       await refetch();
     }
     return { success: data.login.success, errors: data.login.errors };
@@ -103,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await gqlFetch(LOGOUT_MUTATION);
+    await clearCache();
     setUser(null);
     setPermissions([]);
   };
