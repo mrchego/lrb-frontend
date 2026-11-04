@@ -1,5 +1,4 @@
-const GRAPHQL_URL =
-  process.env.NEXT_PUBLIC_GRAPHQL_URL || "http://localhost:8000/graphql/";
+import { graphqlUrl } from "./tenant";
 
 export class GraphQLError extends Error {
   code?: string;
@@ -15,12 +14,12 @@ export async function gqlFetch<T = any>(
   query: string,
   variables?: Record<string, any>,
 ): Promise<T> {
-  const res = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ query, variables }),
-  });
+const res = await fetch(graphqlUrl(), {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "Apollo-Require-Preflight": "true" },
+  credentials: "include",
+  body: JSON.stringify({ query, variables }),
+});
   const json = await res.json();
   if (json.errors?.length) {
     const err = json.errors[0];
@@ -44,8 +43,9 @@ export async function gqlUpload<T = any>(
   form.append("map", JSON.stringify(map));
   fileKeys.forEach((key, i) => form.append(String(i), files[key]));
 
-  const res = await fetch(GRAPHQL_URL, {
+  const res = await fetch(graphqlUrl(), {
     method: "POST",
+    headers: { "Apollo-Require-Preflight": "true" },
     credentials: "include",
     body: form,
   });

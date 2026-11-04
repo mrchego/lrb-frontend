@@ -1,12 +1,11 @@
-const MEDIA_BASE_URL =
-  process.env.NEXT_PUBLIC_MEDIA_BASE_URL || "http://localhost:8000";
+import { getApiOrigin } from "./tenant";
 
 export function resolveMediaUrl(
   url: string | null | undefined,
 ): string | undefined {
   if (!url) return undefined;
   if (/^https?:\/\//i.test(url)) return url;
-  return `${MEDIA_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return `${getApiOrigin()}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 

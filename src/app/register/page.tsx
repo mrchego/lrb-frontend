@@ -1,17 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState , useEffect  } from "react";
 import { useRouter } from "next/navigation";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { REGISTER_COMPANY_MUTATION } from "./mutation";
+import { tenantAppUrl ,  getTenantSlug} from "@/lib/tenant";
 
 export default function RegisterPage() {
   const router = useRouter();
+  useEffect(() => {
+  if (getTenantSlug()) {
+    router.replace("/login");
+  }
+}, [router]);
   const [form, setForm] = useState({
     name: "",
+    slug: "",
     email: "",
     phone: "",
     country: "",
@@ -37,10 +44,10 @@ export default function RegisterPage() {
         registerCompany: { success: boolean; errors: any[] };
       }>(REGISTER_COMPANY_MUTATION, { input: form });
       if (data.registerCompany.success) {
-        router.push(
-          `/verify-email?email=${encodeURIComponent(form.adminEmail)}`,
-        );
-      } else {
+  window.location.assign(
+    tenantAppUrl(form.slug, `/verify-email?email=${encodeURIComponent(form.adminEmail)}`),
+  );
+} else {
         setError(
           data.registerCompany.errors?.[0]?.message ?? "Registration failed.",
         );
@@ -62,6 +69,20 @@ export default function RegisterPage() {
           <Label>Company name</Label>
           <Input value={form.name} onChange={update("name")} required />
         </div>
+        <div>
+  <Label>Company URL</Label>
+  <div className="flex items-center">
+    <Input
+      value={form.slug}
+      onChange={update("slug")}
+      placeholder="your-company"
+      required
+    />
+    <span className="ml-2 text-sm text-muted-foreground">
+      .localhost
+    </span>
+  </div>
+</div>
         <div>
           <Label>Company email</Label>
           <Input

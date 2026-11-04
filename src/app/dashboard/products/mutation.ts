@@ -62,7 +62,7 @@ export const BULK_DEACTIVATE_PRODUCTS_MUTATION = `
 
 export const BULK_DELETE_PRODUCTS_MUTATION = `
   mutation BulkDeleteProducts($productIds: [ID!]!) {
-    bulkDeleteProducts(input: { productIds: $productIds }) {
+    bulkDeleteProduct(input: { productIds: $productIds }) {
       success succeededIds failed { itemId reason }
     }
   }

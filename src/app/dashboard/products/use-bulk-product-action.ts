@@ -35,7 +35,7 @@ export const BULK_PRODUCT_ACTION_MAP: Record<
   },
   delete: {
     query: BULK_DELETE_PRODUCTS_MUTATION,
-    field: "bulkDeleteProducts",
+    field: "bulkDeleteProduct",
     verb: "Delete",
   },
 };
