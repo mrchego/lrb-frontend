@@ -36,6 +36,8 @@ export const COMPANY_SETTINGS_QUERY = `
   }
 `;
 
+export const COMPANY_CURRENCY_QUERY = `query CompanyCurrency { companyCurrency { code name decimals } }`;
+
 // 1. What is it?
 // Constant	GraphQL kind	Role
 // ME_QUERY	query	Get the currently logged-in user

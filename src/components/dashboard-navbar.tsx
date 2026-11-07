@@ -16,6 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ModeToggle } from "./mode-toggle";
 import { resolveMediaUrl } from "@/lib/media";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { CompanyClock } from "./company-clock";
 export function DashboardNavbar() {
   const { user, logout } = useAuth();
   const { company } = useCompany();
@@ -27,6 +28,7 @@ export function DashboardNavbar() {
     <Link href="/dashboard" className="font-semibold text-sm">
       {company?.name ?? "Dashboard"}
     </Link>
+    <CompanyClock/>
   </div>
       <div className="flex items-center gap-2">
         <ModeToggle />

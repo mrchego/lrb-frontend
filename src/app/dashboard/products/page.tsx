@@ -10,6 +10,7 @@ import { PRODUCTS_QUERY } from "./query";
 import type { ProductConnection } from "./type";
 import { getProductColumns } from "./columns";
 import { ProductDataTable } from "./data-table";
+import { useCompanyMoney } from "@/lib/use-company-money";
 
 export default function ProductsPage() {
   return (
@@ -61,7 +62,8 @@ function ProductsPageContent() {
     );
   }
 
-  const columns = getProductColumns(() => mutate(), canSelect);
+  const { formatMoney } = useCompanyMoney();
+  const columns = getProductColumns(() => mutate(), canSelect, formatMoney);
 
   return (
     <div>

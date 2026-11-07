@@ -14,6 +14,8 @@ import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { UPDATE_PRODUCT_MUTATION } from "./mutation";
 import { ManagedProduct } from "./type";
 import { toast } from "react-toastify";
+import { moneyInputValue } from "@/lib/money";
+import { useCompanyMoney } from "@/lib/use-company-money";
 
 export function EditProductSheet({
   product,
@@ -25,11 +27,11 @@ export function EditProductSheet({
   const [form, setForm] = useState({
     name: product.name,
     sku: product.sku,
-    price: product.price,
+    price: moneyInputValue(product.price),
   });
 
   const [submitting, setSubmitting] = useState(false);
-
+  const { step, currency } = useCompanyMoney();
   const update =
     (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -76,13 +78,14 @@ export function EditProductSheet({
           <Input value={form.sku} onChange={update("sku")} />
         </div>
         <div>
-          <Label>Price</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={form.price}
-            onChange={update("price")}
-          />
+          <Label>Price{currency ? ` (${currency})` : ""}</Label>
+<Input
+  type="number"
+  step={step}
+  min="0"
+  value={form.price}
+  onChange={update("price")}
+/>
         </div>
         <SheetFooter>
           <Button type="submit" disabled={submitting}>

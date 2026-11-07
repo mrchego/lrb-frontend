@@ -7,13 +7,14 @@ import { type ColumnDef } from "@tanstack/react-table"; // CHANGED: type-only im
 import { ArrowUpDown } from "lucide-react";
 import { ProductRowActions } from "./product-row-actions";
 import { type DataTableFeatures } from "./data-table-features"; // NEW
-
+import { type MoneyInput } from "@/lib/money";
 // NEW: v9 ColumnDef takes the features type first, then the row type
 type ProductColumn = ColumnDef<DataTableFeatures, ManagedProduct>;
 
 export function getProductColumns(
   mutateProducts: () => void,
   canSelect: boolean,
+  formatMoney: (v: MoneyInput) => string,
 ): ProductColumn[] { // CHANGED
   const columns: ProductColumn[] = []; // CHANGED
 
@@ -68,7 +69,7 @@ export function getProductColumns(
     {
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => `$${Number(row.original.price).toFixed(2)}`,
+      cell: ({ row }) => formatMoney(row.original.price),
     },
     {
       accessorKey: "isActive",

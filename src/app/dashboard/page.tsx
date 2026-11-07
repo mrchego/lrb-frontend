@@ -8,10 +8,11 @@ import { DashboardData } from "./type";
 import { SummaryAreaChart } from "./summary-area-chart";
 import { SummaryCard } from "./summary-cards";
 import { Loading } from "@/components/loading";
+import { useCompanyMoney } from "@/lib/use-company-money";
 
 export default function DashboardHome() {
   const { user, hasPermission, loading: authLoading } = useAuth();
-
+  const { formatMoney } = useCompanyMoney();
   const { data, isLoading, error } = useSWR<{ dashboard: DashboardData }>(
     user ? "dashboard" : null,
     () => gqlFetch<{ dashboard: DashboardData }>(DASHBOARD_QUERY),
@@ -70,7 +71,7 @@ export default function DashboardHome() {
             <SummaryCard label="Total orders" value={dashboard.orders.total} />
             <SummaryCard
               label="Total revenue"
-              value={`$${dashboard.orders.totalRevenue.toFixed(2)}`}
+              value={formatMoney(dashboard.orders.totalRevenue)}
             />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

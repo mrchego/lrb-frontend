@@ -20,12 +20,15 @@ import { Label } from "@/components/ui/label";
 import { resolveMediaUrl } from "@/lib/media";
 import { Loading } from "@/components/loading";
 import { toast } from "react-toastify";
+import { TIMEZONE_CHOICES_QUERY, CURRENCY_SETUP_QUERY } from "./query";
+import { formatMoney, type CurrencyInfo } from "@/lib/money";
 
 type CompanySettingsEditable = Omit<CompanySettings, "id">;
 
 export default function CompanySettingsPage() {
   const { user } = useAuth();
-  const { company, settings, loading, setCompany, setSettings } = useCompany();
+  const { company, settings, loading, setCompany, setSettings, refetch } =
+    useCompany();
 
   if (!user?.isSuperuser) {
     return (
@@ -37,8 +40,7 @@ export default function CompanySettingsPage() {
     );
   }
 
-  if (loading)
-    return <Loading/>
+  if (loading) return <Loading />;
   if (!company || !settings)
     return (
       <div className="p-8 text-sm text-red-600">Could not load company.</div>
@@ -47,7 +49,13 @@ export default function CompanySettingsPage() {
   return (
     <div className="mx-auto max-w-2xl py-12 px-4 space-y-12">
       <CompanyProfileForm company={company} onSaved={setCompany} />
-      <CompanyPreferencesForm settings={settings} onSaved={setSettings} />
+      <CompanyPreferencesForm
+        settings={settings}
+        onSaved={(s) => {
+          setSettings(s);
+          void refetch(); // refresh the currency's decimals so every screen updates
+        }}
+      />
     </div>
   );
 }
@@ -102,63 +110,64 @@ function CompanyProfileForm({
   }, [logoLightPreview, logoDarkPreview]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSubmitting(true);
+    e.preventDefault();
+    setSubmitting(true);
 
-  const variables: any = { input: { ...form } };
-  const files: Record<string, File> = {};
-  if (logoLight) {
-    variables.input.logoLight = null;
-    files["variables.input.logoLight"] = logoLight;
-  }
-  if (logoDark) {
-    variables.input.logoDark = null;
-    files["variables.input.logoDark"] = logoDark;
-  }
-
-  try {
-    const data = Object.keys(files).length
-      ? await gqlUpload<{
-          updateCompany: {
-            success: boolean;
-            company: Company;
-            errors: any[];
-          };
-        }>(UPDATE_COMPANY_MUTATION, variables, files)
-      : await gqlFetch<{
-          updateCompany: {
-            success: boolean;
-            company: Company;
-            errors: any[];
-          };
-        }>(UPDATE_COMPANY_MUTATION, variables);
-
-    if (data.updateCompany.success) {
-      toast.success("Company profile updated.");
-      onSaved(data.updateCompany.company);
-      setLogoLight(null);
-      setLogoDark(null);
-      if (logoLightPreview) {
-        URL.revokeObjectURL(logoLightPreview);
-        setLogoLightPreview(null);
-      }
-      if (logoDarkPreview) {
-        URL.revokeObjectURL(logoDarkPreview);
-        setLogoDarkPreview(null);
-      }
-    } else {
-      toast.error(
-        data.updateCompany.errors?.[0]?.message ?? "Could not update company.",
-      );
+    const variables: any = { input: { ...form } };
+    const files: Record<string, File> = {};
+    if (logoLight) {
+      variables.input.logoLight = null;
+      files["variables.input.logoLight"] = logoLight;
     }
-  } catch (err) {
-    toast.error(
-      err instanceof GraphQLError ? err.message : "Something went wrong.",
-    );
-  } finally {
-    setSubmitting(false);
-  }
-};
+    if (logoDark) {
+      variables.input.logoDark = null;
+      files["variables.input.logoDark"] = logoDark;
+    }
+
+    try {
+      const data = Object.keys(files).length
+        ? await gqlUpload<{
+            updateCompany: {
+              success: boolean;
+              company: Company;
+              errors: any[];
+            };
+          }>(UPDATE_COMPANY_MUTATION, variables, files)
+        : await gqlFetch<{
+            updateCompany: {
+              success: boolean;
+              company: Company;
+              errors: any[];
+            };
+          }>(UPDATE_COMPANY_MUTATION, variables);
+
+      if (data.updateCompany.success) {
+        toast.success("Company profile updated.");
+        onSaved(data.updateCompany.company);
+        setLogoLight(null);
+        setLogoDark(null);
+        if (logoLightPreview) {
+          URL.revokeObjectURL(logoLightPreview);
+          setLogoLightPreview(null);
+        }
+        if (logoDarkPreview) {
+          URL.revokeObjectURL(logoDarkPreview);
+          setLogoDarkPreview(null);
+        }
+      } else {
+        toast.error(
+          data.updateCompany.errors?.[0]?.message ??
+            "Could not update company.",
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof GraphQLError ? err.message : "Something went wrong.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4">Company profile</h2>
@@ -237,13 +246,101 @@ function CompanyProfileForm({
   );
 }
 
-const TIMEZONES = [
-  "UTC",
-  "Africa/Nairobi",
-  "Europe/London",
-  "America/New_York",
-];
-const CURRENCIES = ["USD", "EUR", "GBP", "KES"];
+function TimezoneSelect({
+  value,
+  zones,
+  onChange,
+}: {
+  value: string;
+  zones: string[];
+  onChange: (v: string) => void;
+}) {
+  // "Africa/Nairobi" -> group "Africa"; "UTC" has no slash -> group "Other"
+  const groups = new Map<string, string[]>();
+  for (const z of zones) {
+    const region = z.includes("/") ? z.split("/")[0] : "Other";
+    groups.set(region, [...(groups.get(region) ?? []), z]);
+  }
+  return (
+    <div>
+      <Label>Timezone</Label>
+      <select
+        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {[...groups.entries()].map(([region, list]) => (
+          <optgroup key={region} label={region}>
+            {list.map((z) => (
+              <option key={z} value={z}>
+                {z.includes("/")
+                  ? z.slice(region.length + 1).replace(/_/g, " ")
+                  : z}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function CurrencySelect({
+  value,
+  currencies,
+  locked,
+  language,
+  onChange,
+}: {
+  value: string;
+  currencies: CurrencyInfo[];
+  locked: boolean;
+  language: string;
+  onChange: (v: string) => void;
+}) {
+  // Until the list loads, show only the saved currency so the select isn't empty.
+  const options = currencies.length
+    ? currencies
+    : [{ code: value, name: "", decimals: 2 }];
+  const chosen = currencies.find((c) => c.code === value);
+  return (
+    <div>
+      <Label>Currency</Label>
+      <select
+        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+        value={value}
+        disabled={locked}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.name ? `${c.code} — ${c.name}` : c.code}
+          </option>
+        ))}
+      </select>
+      {locked ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Locked: amounts are already recorded in {value}. Changing it would
+          relabel them without converting.
+        </p>
+      ) : (
+        chosen && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Example:{" "}
+            <span className="tabular-nums text-foreground">
+              {formatMoney(1234567.891, {
+                currency: chosen.code,
+                decimals: chosen.decimals,
+                locale: language,
+              })}
+            </span>
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 const LANGUAGES = [{ value: "en", label: "English" }];
 const DATE_FORMATS = ["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY"];
 const THEMES = ["light", "dark"];
@@ -261,6 +358,39 @@ function CompanyPreferencesForm({
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { setTheme } = useTheme();
+  const [zones, setZones] = useState<string[]>([form.timezone]);
+  useEffect(() => {
+    gqlFetch<{ timezoneChoices: string[] }>(TIMEZONE_CHOICES_QUERY)
+      .then((d) => setZones(d.timezoneChoices))
+      .catch((err) => {
+        console.error("Could not load timezones:", err);
+        toast.error(
+          err instanceof GraphQLError
+            ? err.message
+            : "Could not load timezones.",
+        );
+      });
+  }, []);
+
+  const [currencies, setCurrencies] = useState<CurrencyInfo[]>([]);
+  const [currencyLocked, setCurrencyLocked] = useState(false);
+  useEffect(() => {
+    gqlFetch<{ currencyChoices: CurrencyInfo[]; currencyLocked: boolean }>(
+      CURRENCY_SETUP_QUERY,
+    )
+      .then((d) => {
+        setCurrencies(d.currencyChoices);
+        setCurrencyLocked(d.currencyLocked);
+      })
+      .catch((err) => {
+        console.error("Could not load currencies:", err);
+        toast.error(
+          err instanceof GraphQLError
+            ? err.message
+            : "Could not load currencies.",
+        );
+      });
+  }, []);
 
   const handleThemeChange = (v: string) => {
     setForm((f) => ({ ...f, theme: v }));
@@ -268,51 +398,52 @@ function CompanyPreferencesForm({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSubmitting(true);
-  try {
-    const data = await gqlFetch<{
-      updateCompanySettings: {
-        success: boolean;
-        settings: CompanySettings;
-        errors: any[];
-      };
-    }>(UPDATE_COMPANY_SETTINGS_MUTATION, { input: form });
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const data = await gqlFetch<{
+        updateCompanySettings: {
+          success: boolean;
+          settings: CompanySettings;
+          errors: any[];
+        };
+      }>(UPDATE_COMPANY_SETTINGS_MUTATION, { input: form });
 
-    if (data.updateCompanySettings.success) {
-      toast.success("Preferences updated.");
-      onSaved(data.updateCompanySettings.settings);
-      const { id: _id, ...freshEditable } = data.updateCompanySettings.settings;
-      setForm(freshEditable);
-    } else {
+      if (data.updateCompanySettings.success) {
+        toast.success("Preferences updated.");
+        onSaved(data.updateCompanySettings.settings);
+        const { id: _id, ...freshEditable } =
+          data.updateCompanySettings.settings;
+        setForm(freshEditable);
+      } else {
+        toast.error(
+          data.updateCompanySettings.errors?.[0]?.message ??
+            "Could not update settings.",
+        );
+      }
+    } catch (err) {
       toast.error(
-        data.updateCompanySettings.errors?.[0]?.message ??
-          "Could not update settings.",
+        err instanceof GraphQLError ? err.message : "Something went wrong.",
       );
+    } finally {
+      setSubmitting(false);
     }
-  } catch (err) {
-    toast.error(
-      err instanceof GraphQLError ? err.message : "Something went wrong.",
-    );
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4">Preferences</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <Select
-            label="Timezone"
+          <TimezoneSelect
             value={form.timezone}
-            options={TIMEZONES}
+            zones={zones}
             onChange={(v) => setForm((f) => ({ ...f, timezone: v }))}
           />
-          <Select
-            label="Currency"
+          <CurrencySelect
             value={form.currency}
-            options={CURRENCIES}
+            currencies={currencies}
+            locked={currencyLocked}
+            language={form.language}
             onChange={(v) => setForm((f) => ({ ...f, currency: v }))}
           />
         </div>
@@ -377,11 +508,8 @@ function Select({
   );
 }
 
-
-
 // React.Dispatch
 // React.Dispatch<...>
-
 
 // React.Dispatch is a TypeScript type provided by React.
 
@@ -392,7 +520,6 @@ function Select({
 //   console.log(message);
 // };
 
-
 // This function accepts a string.
 
 // Similarly, a React state setter accepts an argument describing the next state or how to calculate it.
@@ -400,7 +527,6 @@ function Select({
 // For your code, React.Dispatch describes the setter function's overall shape.
 // Part 3: React.SetStateAction
 // React.SetStateAction<File | null>
-
 
 // This is another React type.
 
@@ -410,7 +536,6 @@ function Select({
 // Conceptually, the type is equivalent to:
 // type SetStateAction<S> = S | ((prevState: S) => S);
 
-
 // Here, S represents the state type.
 
 // Let's use your File | null example.
@@ -418,9 +543,7 @@ function Select({
 // Option A — Pass a new file directly
 // setFile(selectedFile);
 
-
 // Option B — Pass a function that calculates the next state
 // setFile((previousFile) => selectedFile);
-
 
 // Both are valid ways to update React state, although the callback is most useful when the new value depends on the previous value.

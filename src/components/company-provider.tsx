@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { gqlFetch } from "@/lib/graphql-client";
-import { COMPANY_QUERY, COMPANY_SETTINGS_QUERY } from "@/lib/queries";
+import { COMPANY_QUERY, COMPANY_SETTINGS_QUERY,  COMPANY_CURRENCY_QUERY, } from "@/lib/queries";
 
 type ImageRef = { url: string; name: string } | null;
 
@@ -36,9 +36,12 @@ export type CompanySettings = {
   theme: string;
 };
 
+export type CompanyCurrency = { code: string; name: string; decimals: number }
+
 type CompanyContextValue = {
   company: Company | null;
   settings: CompanySettings | null;
+  currency: CompanyCurrency | null;
   loading: boolean;
   setCompany: (c: Company) => void;
   setSettings: (s: CompanySettings) => void;
@@ -50,19 +53,25 @@ const CompanyContext = createContext<CompanyContextValue | null>(null);
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [currency, setCurrency] = useState<CompanyCurrency | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
     try {
-      const [c, s] = await Promise.all([
+      const [c, s, cur] = await Promise.all([
         gqlFetch<{ company: Company }>(COMPANY_QUERY),
         gqlFetch<{ companySettings: CompanySettings }>(COMPANY_SETTINGS_QUERY),
+        gqlFetch<{ companyCurrency: CompanyCurrency }>(
+          COMPANY_CURRENCY_QUERY,
+        ).catch(() => null),
       ]);
       setCompany(c.company);
       setSettings(s.companySettings);
+      setCurrency(cur?.companyCurrency ?? null);
     } catch {
       setCompany(null);
       setSettings(null);
+      setCurrency(null);
     }
   }, []);
 
@@ -75,7 +84,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   return (
     <CompanyContext.Provider
-      value={{ company, settings, loading, setCompany, setSettings, refetch }}
+      value={{ company, settings, currency, loading, setCompany, setSettings, refetch }}
     >
       {children}
     </CompanyContext.Provider>
