@@ -21,7 +21,7 @@ export const USERS_QUERY = `
 
 export const STAFF_MEMBERS_QUERY = `
   query StaffMembers($canLogin: Boolean, $limit: Int, $offset: Int) {
-    staffMembers(canLogin: $canLogin, limit: $limit, offset: $offset) {
+    staffMembers(canLogin: $canLogin,limit: $limit, offset: $offset) {
       totalCount
       items {
         id email firstName lastName fullName phone
@@ -34,7 +34,7 @@ export const STAFF_MEMBERS_QUERY = `
 
 export const INVITATIONS_QUERY = `
   query Invitations($used: Boolean, $limit: Int, $offset: Int) {
-    invitations(used: $used, limit: $limit, offset: $offset) {
+    invitations(used: $used,  limit: $limit, offset: $offset) {
       totalCount
       items {
         id email roleName invitedByEmail used acceptedAt expiresAt isExpired createdAt

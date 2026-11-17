@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { REGISTER_COMPANY_MUTATION } from "./mutation";
 import { tenantAppUrl ,  getTenantSlug} from "@/lib/tenant";
+import { PhoneInput } from "@/components/phone-input";
+import { checkPhone } from "@/lib/phone";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,6 +39,8 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const phoneCheck = checkPhone(form.phone);
+    if (!phoneCheck.ok) { setError(phoneCheck.message); return; }
     setSubmitting(true);
     setError(null);
     try {
@@ -94,7 +98,11 @@ export default function RegisterPage() {
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={form.phone} onChange={update("phone")} required />
+          <PhoneInput
+      value={form.phone}
+      onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+      required
+    />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>

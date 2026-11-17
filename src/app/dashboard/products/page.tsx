@@ -12,6 +12,8 @@ import { getProductColumns } from "./columns";
 import { ProductDataTable } from "./data-table";
 import { useCompanyMoney } from "@/lib/use-company-money";
 
+export type CreatedRange = { start?: string; end?: string };
+
 export default function ProductsPage() {
   return (
     <RequireAuth>
@@ -24,6 +26,7 @@ function ProductsPageContent() {
   const { hasPermission } = useAuth();
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [search, setSearch] = useState("");
+  const [createdRange, setCreatedRange] = useState<CreatedRange>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -34,12 +37,18 @@ function ProductsPageContent() {
   const canView = hasPermission("products.view_product");
   const canSelect = hasPermission("products.change_product") || hasPermission("products.delete_product");
 
+  const createdVar =
+    createdRange.start || createdRange.end
+      ? { start: createdRange.start ?? null, end: createdRange.end ?? null }
+      : null;
+
   const { data, error, isLoading, mutate } = useSWR<{ products: ProductConnection }>(
-    canView ? ["products", isActive, search, pagination.pageIndex, pagination.pageSize] : null,
+    canView ? ["products", isActive, search, createdRange.start ?? "",  createdRange.end ?? "", pagination.pageIndex, pagination.pageSize] : null,
     () =>
       gqlFetch<{ products: ProductConnection }>(PRODUCTS_QUERY, {
         isActive,
         search: search || undefined,
+        created: createdVar,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
       }),
@@ -86,6 +95,11 @@ function ProductsPageContent() {
         search={search}
         onSearchChange={(v) => {
           setSearch(v);
+          setPagination((p) => ({ ...p, pageIndex: 0 }));
+        }}
+        createdRange={createdRange}
+        onCreatedRangeChange={(r) => {
+          setCreatedRange(r);
           setPagination((p) => ({ ...p, pageIndex: 0 }));
         }}
         pagination={pagination}

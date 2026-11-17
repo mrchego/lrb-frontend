@@ -14,6 +14,8 @@ import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { ADMIN_UPDATE_USER_MUTATION } from "./mutation";
 import { ManagedUser } from "./type";
 import { toast } from "react-toastify";
+import { PhoneInput } from "@/components/phone-input";
+import { checkPhone } from "@/lib/phone";
 
 export function EditUserSheet({
   user,
@@ -36,6 +38,8 @@ export function EditUserSheet({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const phoneCheck = checkPhone(form.phone);
+    if (!phoneCheck.ok) { toast.error(phoneCheck.message); return; }
     setError(null);
     setSubmitting(true);
     try {
@@ -75,7 +79,11 @@ export function EditUserSheet({
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={form.phone} onChange={update("phone")} />
+          <PhoneInput
+            value={form.phone}
+            onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+            inspect
+          />
         </div>
         <SheetFooter>
           <Button type="submit" disabled={submitting}>

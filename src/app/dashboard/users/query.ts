@@ -1,6 +1,6 @@
 export const USERS_QUERY = `
-  query Users($isActive: Boolean, $canLogin: Boolean, $search: String, $limit: Int, $offset: Int) {
-    users(isActive: $isActive, canLogin: $canLogin, search: $search, limit: $limit, offset: $offset) {
+  query Users($isActive: Boolean, $canLogin: Boolean, $search: String, $created: DateRangeInput, $limit: Int, $offset: Int) {
+    users(isActive: $isActive, canLogin: $canLogin, search: $search, created: $created, limit: $limit, offset: $offset) {
       totalCount
       items {
         id email firstName lastName fullName phone

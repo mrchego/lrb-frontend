@@ -22,6 +22,8 @@ import { BulkActionsBar } from "./bulk-actions-bar";
 import { features, type DataTableFeatures } from "./data-table-features";
 import { ManagedUser } from "./type";
 import {  LoadingOverlay  } from "@/components/loading";
+import { CreatedRange } from "./page";
+import { X } from "lucide-react";
 
 interface Props {
   columns: ColumnDef<DataTableFeatures, ManagedUser>[];
@@ -32,6 +34,8 @@ interface Props {
   onStatusFilterChange: (v: "all" | "active" | "inactive") => void;
   search: string;
   onSearchChange: (v: string) => void;
+  createdRange: CreatedRange; 
+  onCreatedRangeChange: (r: CreatedRange) => void;
   pagination: PaginationState;
   onPaginationChange: (p: PaginationState) => void;
   onBulkActionDone: () => void;
@@ -46,6 +50,8 @@ export function UserDataTable({
   onStatusFilterChange,
   search,
   onSearchChange,
+  createdRange,
+  onCreatedRangeChange,
   pagination,
   onPaginationChange,
   onBulkActionDone,
@@ -109,6 +115,46 @@ export function UserDataTable({
               {v[0].toUpperCase() + v.slice(1)}
             </Button>
           ))}
+
+          {/* <div className="flex items-center gap-1">
+            <Input
+              type="date"
+              value={createdRange.start ?? ""}
+              onChange={(e) =>
+                onCreatedRangeChange({
+                  ...createdRange,
+                  start: e.target.value || undefined,
+                })
+              }
+              className="w-auto"
+              disabled={isLoading}
+              aria-label="Created from"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={createdRange.end ?? ""}
+              onChange={(e) =>
+                onCreatedRangeChange({
+                  ...createdRange,
+                  end: e.target.value || undefined,
+                })
+              }
+              className="w-auto"
+              disabled={isLoading}
+              aria-label="Created to"
+            />
+            {(createdRange.start || createdRange.end) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onCreatedRangeChange({})}
+                aria-label="Clear created filter"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div> */}
         </div>
       </div>
 

@@ -12,12 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Loading } from "@/components/loading";
 import { toast } from "react-toastify";
+import { PhoneInput } from "@/components/phone-input";
+import { checkPhone } from "@/lib/phone";
 
 export default function ProfileSettingsPage() {
   const { user, loading, setUser } = useAuth();
 
-  if (loading) return <Loading/>
-  if (!user) return <div className="p-8 text-sm text-red-600">Could not load your profile.</div>;
+  if (loading) return <Loading />;
+  if (!user)
+    return (
+      <div className="p-8 text-sm text-red-600">
+        Could not load your profile.
+      </div>
+    );
 
   return (
     <div className="mx-auto max-w-lg py-12 px-4">
@@ -43,8 +50,9 @@ function ProfileForm({
 
   const [submitting, setSubmitting] = useState(false);
 
-  const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const update =
+    (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -61,48 +69,51 @@ function ProfileForm({
     };
   }, [avatarPreview]);
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSubmitting(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const phoneCheck = checkPhone(form.phone);
+    if (!phoneCheck.ok) { toast.error(phoneCheck.message); return; }
+    setSubmitting(true);
 
-  // UpdateProfileInput fields are camelCase on the wire: firstName, lastName, phone, avatar.
-  const variables: any = { input: { ...form } };
-  const files: Record<string, File> = {};
-  if (avatar) {
-    variables.input.avatar = null;
-    files["variables.input.avatar"] = avatar;
-  }
-
-  try {
-    const data = Object.keys(files).length
-      ? await gqlUpload<{
-          updateProfile: { success: boolean; user: any; errors: any[] };
-        }>(UPDATE_PROFILE_MUTATION, variables, files)
-      : await gqlFetch<{
-          updateProfile: { success: boolean; user: any; errors: any[] };
-        }>(UPDATE_PROFILE_MUTATION, variables);
-
-    if (data.updateProfile.success) {
-      toast.success("Profile updated.");
-      onSaved(data.updateProfile.user); // updates shared auth context
-      setAvatar(null);
-      if (avatarPreview) {
-        URL.revokeObjectURL(avatarPreview);
-        setAvatarPreview(null);
-      }
-    } else {
-      toast.error(
-        data.updateProfile.errors?.[0]?.message ?? "Could not update profile.",
-      );
+    // UpdateProfileInput fields are camelCase on the wire: firstName, lastName, phone, avatar.
+    const variables: any = { input: { ...form } };
+    const files: Record<string, File> = {};
+    if (avatar) {
+      variables.input.avatar = null;
+      files["variables.input.avatar"] = avatar;
     }
-  } catch (err) {
-    toast.error(
-      err instanceof GraphQLError ? err.message : "Something went wrong.",
-    );
-  } finally {
-    setSubmitting(false);
-  }
-};
+
+    try {
+      const data = Object.keys(files).length
+        ? await gqlUpload<{
+            updateProfile: { success: boolean; user: any; errors: any[] };
+          }>(UPDATE_PROFILE_MUTATION, variables, files)
+        : await gqlFetch<{
+            updateProfile: { success: boolean; user: any; errors: any[] };
+          }>(UPDATE_PROFILE_MUTATION, variables);
+
+      if (data.updateProfile.success) {
+        toast.success("Profile updated.");
+        onSaved(data.updateProfile.user); // updates shared auth context
+        setAvatar(null);
+        if (avatarPreview) {
+          URL.revokeObjectURL(avatarPreview);
+          setAvatarPreview(null);
+        }
+      } else {
+        toast.error(
+          data.updateProfile.errors?.[0]?.message ??
+            "Could not update profile.",
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof GraphQLError ? err.message : "Something went wrong.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-1">Your profile</h1>
@@ -128,17 +139,29 @@ function ProfileForm({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>First name</Label>
-            <Input value={form.firstName} onChange={update("firstName")} required />
+            <Input
+              value={form.firstName}
+              onChange={update("firstName")}
+              required
+            />
           </div>
           <div>
             <Label>Last name</Label>
-            <Input value={form.lastName} onChange={update("lastName")} required />
+            <Input
+              value={form.lastName}
+              onChange={update("lastName")}
+              required
+            />
           </div>
         </div>
 
         <div>
           <Label>Phone</Label>
-          <Input value={form.phone} onChange={update("phone")} />
+          <PhoneInput
+            value={form.phone}
+            onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+            required
+          />
         </div>
         <Button type="submit" disabled={submitting}>
           {submitting ? "Saving…" : "Save profile"}

@@ -87,6 +87,23 @@ export function getProductColumns(
       ),
     },
     {
+  accessorKey: "createdAt",
+  header: "Created",
+  meta: { className: "hidden md:table-cell" },
+  cell: ({ row }) => {
+    const d = new Date(row.original.createdAt);
+    return (
+      <span className="text-sm text-muted-foreground">
+        {d.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+        })}
+      </span>
+    );
+  },
+},
+    {
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (

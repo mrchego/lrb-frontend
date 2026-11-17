@@ -11,6 +11,8 @@ import { UserDataTable } from "./data-table";
 import { UserConnection } from "./type";
 import { USERS_QUERY } from "./query";
 
+export type CreatedRange = { start?: string; end?: string };
+
 export default function UsersPage() {
   return (
     <RequireSuperuser>
@@ -25,6 +27,7 @@ function UsersPageContent() {
     "all" | "active" | "inactive"
   >("all");
   const [search, setSearch] = useState("");
+  const [createdRange, setCreatedRange] = useState<CreatedRange>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -33,12 +36,18 @@ function UsersPageContent() {
   const isActive =
     statusFilter === "all" ? undefined : statusFilter === "active";
 
+  const createdVar =
+    createdRange.start || createdRange.end
+      ? { start: createdRange.start ?? null, end: createdRange.end ?? null }
+      : null;
+
   const { data, error, isLoading, mutate } = useSWR<{ users: UserConnection }>(
-    ["users", isActive, search, pagination.pageIndex, pagination.pageSize],
+    ["users", isActive, search, createdRange.start ?? "", createdRange.end ?? "", pagination.pageIndex, pagination.pageSize],
     () =>
       gqlFetch<{ users: UserConnection }>(USERS_QUERY, {
         isActive,
         search: search || undefined,
+        created: createdVar,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
       }),
@@ -79,6 +88,11 @@ function UsersPageContent() {
         search={search}
         onSearchChange={(v) => {
           setSearch(v);
+          setPagination((p) => ({ ...p, pageIndex: 0 }));
+        }}
+        createdRange={createdRange}
+        onCreatedRangeChange={(r) => {
+          setCreatedRange(r);
           setPagination((p) => ({ ...p, pageIndex: 0 }));
         }}
         pagination={pagination}

@@ -1,12 +1,9 @@
 import { graphqlUrl } from "./tenant";
 
 export class GraphQLError extends Error {
-  code?: string;
-  field?: string;
-  constructor(message: string, code?: string, field?: string) {
-    super(message);
-    this.code = code;
-    this.field = field;
+  code?: string; field?: string; retryAfter?: number;
+  constructor(message: string, code?: string, field?: string, retryAfter?: number) {
+    super(message); this.code = code; this.field = field; this.retryAfter = retryAfter;
   }
 }
 
@@ -23,7 +20,7 @@ const res = await fetch(graphqlUrl(), {
   const json = await res.json();
   if (json.errors?.length) {
     const err = json.errors[0];
-    throw new GraphQLError(err.message, err.extensions?.code);
+    throw new GraphQLError(err.message, err.extensions?.code, undefined, err.extensions?.retryAfter);
   }
   return json.data as T;
 }
@@ -53,7 +50,7 @@ export async function gqlUpload<T = any>(
   const json = await res.json();
   if (json.errors?.length) {
     const err = json.errors[0];
-    throw new GraphQLError(err.message, err.extensions?.code);
+    throw new GraphQLError(err.message, err.extensions?.code, undefined, err.extensions?.retryAfter);
   }
   return json.data as T;
 }

@@ -1,7 +1,10 @@
 // app/dashboard/settings/company/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, useMemo } from "react";
+import { type SelectItem } from "@/components/searchable-select";
+import { zoneLabel } from "@/lib/time";
+
 import { useAuth } from "@/components/auth-provider";
 import {
   useCompany,
@@ -22,6 +25,10 @@ import { Loading } from "@/components/loading";
 import { toast } from "react-toastify";
 import { TIMEZONE_CHOICES_QUERY, CURRENCY_SETUP_QUERY } from "./query";
 import { formatMoney, type CurrencyInfo } from "@/lib/money";
+import { PhoneInput } from "@/components/phone-input";
+import { checkPhone } from "@/lib/phone";
+import { SearchableSelect } from "@/components/searchable-select";
+
 
 type CompanySettingsEditable = Omit<CompanySettings, "id">;
 
@@ -111,6 +118,8 @@ function CompanyProfileForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const phoneCheck = checkPhone(form.phone);
+    if (!phoneCheck.ok) { toast.error(phoneCheck.message); return; }
     setSubmitting(true);
 
     const variables: any = { input: { ...form } };
@@ -187,7 +196,11 @@ function CompanyProfileForm({
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={form.phone} onChange={update("phone")} required />
+          <PhoneInput
+      value={form.phone}
+      onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+      inspect
+    />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -255,32 +268,40 @@ function TimezoneSelect({
   zones: string[];
   onChange: (v: string) => void;
 }) {
-  // "Africa/Nairobi" -> group "Africa"; "UTC" has no slash -> group "Other"
-  const groups = new Map<string, string[]>();
-  for (const z of zones) {
-    const region = z.includes("/") ? z.split("/")[0] : "Other";
-    groups.set(region, [...(groups.get(region) ?? []), z]);
-  }
+  const id = useId();
+  const items = useMemo<SelectItem[]>(
+    () =>
+      zones
+        .map((z) => {
+          // "Africa/Nairobi" -> group "Africa"; "UTC" has no slash -> group "Other"
+          const region = z.includes("/") ? z.split("/")[0] : "Other";
+          const offset = zoneLabel(z); // "GMT+3": searchable too, so "gmt+3" finds Nairobi
+          const name = z.includes("/")
+            ? z.slice(region.length + 1).replace(/_/g, " ")
+            : z;
+          return {
+            value: z,
+            label: name,
+            hint: offset,
+            group: region,
+            keywords: `${z} ${region}`,
+            triggerLabel: `${z.replace(/_/g, " ")} (${offset})`,
+          };
+        })
+        // Headings need each region's rows to be adjacent (stable sort keeps city order).
+        .sort((a, b) => a.group.localeCompare(b.group)),
+    [zones],
+  );
   return (
     <div>
-      <Label>Timezone</Label>
-      <select
-        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+      <Label htmlFor={id}>Timezone</Label>
+      <SearchableSelect
+        id={id}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {[...groups.entries()].map(([region, list]) => (
-          <optgroup key={region} label={region}>
-            {list.map((z) => (
-              <option key={z} value={z}>
-                {z.includes("/")
-                  ? z.slice(region.length + 1).replace(/_/g, " ")
-                  : z}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+        onChange={onChange}
+        items={items}
+        searchPlaceholder="Search city, region or GMT+3…"
+      />
     </div>
   );
 }
@@ -298,26 +319,32 @@ function CurrencySelect({
   language: string;
   onChange: (v: string) => void;
 }) {
+  const id = useId();
   // Until the list loads, show only the saved currency so the select isn't empty.
-  const options = currencies.length
-    ? currencies
-    : [{ code: value, name: "", decimals: 2 }];
+  const items = useMemo<SelectItem[]>(
+    () =>
+      (currencies.length ? currencies : [{ code: value, name: "", decimals: 2 }]).map(
+        (c) => ({
+          value: c.code,
+          label: c.name || c.code,
+          hint: c.name ? c.code : undefined, // "Kenyan Shilling ........ KES"
+          triggerLabel: c.name ? `${c.code} — ${c.name}` : c.code,
+        }),
+      ),
+    [currencies, value],
+  );
   const chosen = currencies.find((c) => c.code === value);
   return (
     <div>
-      <Label>Currency</Label>
-      <select
-        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+      <Label htmlFor={id}>Currency</Label>
+      <SearchableSelect
+        id={id}
         value={value}
+        onChange={onChange}
+        items={items}
         disabled={locked}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((c) => (
-          <option key={c.code} value={c.code}>
-            {c.name ? `${c.code} — ${c.name}` : c.code}
-          </option>
-        ))}
-      </select>
+        searchPlaceholder="Search currency or code…"
+      />
       {locked ? (
         <p className="mt-1 text-xs text-muted-foreground">
           Locked: amounts are already recorded in {value}. Changing it would
@@ -490,24 +517,18 @@ function Select({
   options: string[];
   onChange: (v: string) => void;
 }) {
+  const id = useId();
+  const items = useMemo<SelectItem[]>(
+    () => options.map((o) => ({ value: o, label: o })),
+    [options],
+  );
   return (
     <div>
-      <Label>{label}</Label>
-      <select
-        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+      <Label htmlFor={id}>{label}</Label>
+      <SearchableSelect id={id} value={value} onChange={onChange} items={items} />
     </div>
   );
 }
-
 // React.Dispatch
 // React.Dispatch<...>
 
