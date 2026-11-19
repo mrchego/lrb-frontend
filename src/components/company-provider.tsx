@@ -34,6 +34,8 @@ export type CompanySettings = {
   language: string;
   dateFormat: string;
   theme: string;
+  brandColor: string;
+  appearance: Record<string, unknown>;
 };
 
 export type CompanyCurrency = { code: string; name: string; decimals: number }

@@ -31,7 +31,7 @@ export const COMPANY_QUERY = `
 export const COMPANY_SETTINGS_QUERY = `
   query CompanySettings {
     companySettings {
-      id timezone currency language dateFormat theme
+      id timezone currency language dateFormat theme brandColor appearance
     }
   }
 `;

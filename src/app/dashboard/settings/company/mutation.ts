@@ -17,7 +17,7 @@ export const UPDATE_COMPANY_SETTINGS_MUTATION = `
   mutation UpdateCompanySettings($input: UpdateCompanySettingsInput!) {
     updateCompanySettings(input: $input) {
       success
-      settings { id timezone currency language dateFormat theme }
+      settings { id timezone currency language dateFormat theme brandColor appearance }
       errors { message code field }
     }
   }

@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardNavbar } from "@/components/dashboard-navbar";
 import { ClockProvider } from "@/components/clock-provider";
+import { BrandTheme } from "@/components/brand-theme";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,7 @@ export default function DashboardLayout({
     <RequireAuth>
       <ClockProvider>
       <CompanyProvider>
+        <BrandTheme />
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
