@@ -3,7 +3,7 @@ export const ME_QUERY = `
         me {
             id email firstName lastName fullName phone
             avatar {url name}
-            isSuperuser 
+            hasFounderAccess 
             company {id name}
         }
     }
@@ -15,6 +15,12 @@ export const EFFECTIVE_PERMISSION_QUERY = `
             codenames
         }
     }
+`;
+
+export const EFFECTIVE_PERMISSIONS_QUERY = `
+  query EffectivePermissions($userId: ID!) {
+    effectivePermissions(userId: $userId) { codenames }
+  }
 `;
 
 export const COMPANY_QUERY = `
@@ -65,7 +71,7 @@ export const COMPANY_CURRENCY_QUERY = `query CompanyCurrency { companyCurrency {
 //     me {
 //         id email firstName lastName fullName phone
 //         avatar {url name}
-//         isSuperuser
+//         hasFounderAccess
 //         company {id name}
 //     }
 // }
@@ -95,3 +101,4 @@ export const COMPANY_CURRENCY_QUERY = `query CompanyCurrency { companyCurrency {
 // effectivePermissions(userId: $userId)	Calls a field with an argument. Left userId is the argument name the backend defined. Right $userId is your variable
 
 // Declaring ($userId: ID! at the top) and using (userId: $userId below) are two separate steps.
+

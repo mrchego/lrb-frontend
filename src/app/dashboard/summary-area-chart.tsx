@@ -8,13 +8,14 @@ import {
   ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartPoint } from "./type";
+import { chartColor } from "@/lib/chart-theme";
 
 export function SummaryAreaChart({
   title,
   description,
   data,
   dataKey = "value",
-  color = "var(--chart-1)",
+  color = chartColor(0),
 }: {
   title: string;
   description?: string;

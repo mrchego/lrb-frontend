@@ -1,7 +1,7 @@
 export const USERS_FOR_ROLE_ASSIGNMENT_QUERY = `
   query UsersForRoleAssignment($search: String, $canLogin: Boolean, $limit: Int, $offset: Int) {
     users(search: $search, canLogin: $canLogin, limit: $limit, offset: $offset) {
-      items { id email fullName isSuperuser roles { id name } }
+      items { id email fullName hasFounderAccess roles { id name } }
       totalCount
     }
   }

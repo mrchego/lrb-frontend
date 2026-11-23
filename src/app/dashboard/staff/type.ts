@@ -22,6 +22,9 @@ export type StaffMember = {
   isLocked: boolean;
   lastLogin: string | null;
   createdAt: string;
+  roles: { id: string; name: string }[];
+  hasCustomPermissions: boolean;
+  hasFounderAccess: boolean;
   company: { id: string; name: string } | null;
 };
 

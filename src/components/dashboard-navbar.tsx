@@ -64,7 +64,7 @@ export function DashboardNavbar() {
             >
               Change password
             </DropdownMenuItem>
-            {user?.isSuperuser && (
+            {user?.hasFounderAccess && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -84,3 +84,4 @@ export function DashboardNavbar() {
     </header>
   );
 }
+

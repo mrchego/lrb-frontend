@@ -12,7 +12,7 @@ export type AssignableUser = {
   id: string;
   email: string;
   fullName: string;
-  isSuperuser: boolean;
+  hasFounderAccess: boolean;
   roles: { id: string; name: string }[];
 };
 
@@ -21,4 +21,5 @@ export type BulkRoleActionResult = {
   succeededIds: string[];
   failed: { itemId: string; reason: string }[];
 };
+
 

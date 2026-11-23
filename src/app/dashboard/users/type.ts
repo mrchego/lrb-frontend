@@ -5,9 +5,9 @@ export type ManagedUser = {
   lastName: string;
   fullName: string;
   phone: string;
-  isSuperuser: boolean;
   isFounder: boolean;
-  isStaff: boolean;
+  isCofounder: boolean;
+  hasFounderAccess: boolean;
   canLogin: boolean;
   isActive: boolean;
   isLocked: boolean;
@@ -17,6 +17,8 @@ export type ManagedUser = {
   lastLogin: string | null;
   createdAt: string;
   company: { id: string; name: string } | null;
+  roles: { id: string; name: string }[];
+  hasCustomPermissions: boolean;
 };
 
 export type UserConnection = { items: ManagedUser[]; totalCount: number };
@@ -28,3 +30,4 @@ export type BulkUserActionResult = {
   succeededIds: string[];
   failed: BulkActionFailure[];
 };
+

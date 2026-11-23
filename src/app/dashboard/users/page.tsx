@@ -71,8 +71,7 @@ function UsersPageContent() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold">Users</h1>
         <p className="text-sm text-muted-foreground">
-          Manage every account in your company. Only the owner can perform these
-          actions.
+          "Manage founders, co-founders, users, and permissions."
         </p>
       </div>
       <UserDataTable

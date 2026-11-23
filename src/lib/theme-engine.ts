@@ -36,12 +36,14 @@ export const SURFACES = ["neutral", "warm", "cool", "brand"] as const;
 export const INTENSITIES = ["subtle", "soft", "rich"] as const;
 export const SIDEBARS = ["match", "tinted", "dark", "brand"] as const;
 export const RADII = ["sharp", "default", "soft", "round"] as const;
+export const CHARTS = ["varied", "shades"] as const;
 export const COLOR_SLOTS = ["background", "card", "sidebar", "foreground", "border"] as const;
 
 export type Surface = (typeof SURFACES)[number];
 export type Intensity = (typeof INTENSITIES)[number];
 export type SidebarStyle = (typeof SIDEBARS)[number];
 export type Radius = (typeof RADII)[number];
+export type ChartStyle = (typeof CHARTS)[number];
 export type ColorSlot = (typeof COLOR_SLOTS)[number];
 export type Overrides = Partial<Record<ColorSlot, string>>;
 
@@ -50,6 +52,7 @@ export type Appearance = {
   intensity: Intensity; // how strong that tint is
   sidebar: SidebarStyle;
   radius: Radius;
+  charts: ChartStyle; // "varied": a hue per series, "shades": one hue family. Needs a brand color.
   overrides: Record<Mode, Overrides>; // advanced, per mode
 };
 
@@ -58,6 +61,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   intensity: "soft",
   sidebar: "match",
   radius: "default",
+  charts: "varied",
   overrides: { light: {}, dark: {} },
 };
 
@@ -105,6 +109,7 @@ export function normalizeAppearance(raw: unknown): Appearance {
     intensity: pick(INTENSITIES, r.intensity, "soft"),
     sidebar: pick(SIDEBARS, r.sidebar, "match"),
     radius: pick(RADII, r.radius, "default"),
+    charts: pick(CHARTS, r.charts, "varied"),
     overrides: { light: overrides("light"), dark: overrides("dark") },
   };
 }
@@ -114,7 +119,11 @@ export const hasOverrides = (a: Appearance) =>
 
 /** True when the appearance changes nothing (so we store `{}` and emit no CSS). */
 export const isDefaultAppearance = (a: Appearance) =>
-  a.surface === "neutral" && a.sidebar === "match" && a.radius === "default" && !hasOverrides(a);
+  a.surface === "neutral" &&
+  a.sidebar === "match" &&
+  a.radius === "default" &&
+  a.charts === "varied" &&
+  !hasOverrides(a);
 
 /* ----------------------------------------------------------------------------
  * Color math
@@ -303,6 +312,71 @@ function visibleBorder(border: RGB, bg: RGB, text: RGB, min = 1.12): RGB {
   return text;
 }
 
+/* ----------------------------------------------------------------------------
+ * Chart colors
+ * ------------------------------------------------------------------------- */
+
+const CHART_HUE_STEPS = [0, 144, 288, 72, 216]; // skip-two ordering: neighbours are far apart
+const CHART_L_NUDGE = [0, 0.05, -0.04, 0.04, -0.05]; // alternate lightness so it works without hue
+
+/** Step lightness away from the background until the color reaches 3:1 on all of `bgs`. */
+function fitLightness(L: number, C: number, H: number, bgs: RGB[], dir: 1 | -1, min = 3): RGB {
+  let l = L;
+  for (let i = 0; i < 90; i++) {
+    const rgb = ok(l, C, H);
+    if (bgs.every((bg) => cr(rgb, bg) >= min)) return rgb;
+    l = clamp(l + dir * 0.01, 0.04, 0.99);
+  }
+  return ok(l, C, H);
+}
+
+/**
+ * Five series colors for charts, anchored on the (already contrast-checked) brand color.
+ *   varied: a different hue per series, all at the brand color's lightness and chroma,
+ *           so they look like one family instead of a rainbow;
+ *   shades: one hue, five lightness steps.
+ * Every color reaches 3:1 against the card they are drawn on (WCAG for graphics). A gray brand
+ * color has no hue to spread, so it always gets shades.
+ */
+function chartSeries(primary: RGB, bgs: RGB[], style: ChartStyle): RGB[] {
+  const [L, C, H] = rgbToOklch(primary);
+  const dir: 1 | -1 = towardFor(bgs[0]) === WHITE ? 1 : -1; // which way means "more contrast"
+  const gray = C < 0.03;
+  // The brand color itself stays exact unless an unusual card color made it too faint.
+  const first = bgs.every((bg) => cr(primary, bg) >= 3) ? primary : fitLightness(L, C, H, bgs, dir);
+
+  if (style === "varied" && !gray) {
+    // Series live in a comfortable lightness band, whatever the brand's own lightness is,
+    // so a very pale or very dark brand color can't drag the whole palette to white/black.
+    const [lo, hi] = dir < 0 ? [0.42, 0.66] : [0.6, 0.84];
+    const base = clamp(L, lo + 0.04, hi - 0.04);
+    const c = clamp(C, 0.09, 0.17);
+    return CHART_HUE_STEPS.map((step, i) =>
+      i === 0 ? first : fitLightness(clamp(base + CHART_L_NUDGE[i], lo, hi), c, (H + step) % 360, bgs, dir),
+    );
+  }
+
+  // Shades: one hue. Pick lightness steps spread as far apart as possible, starting from the brand's.
+  const c = gray ? 0 : clamp(C * 0.9, 0.04, 0.17);
+  const edge = rgbToOklch(fitLightness(dir < 0 ? 0.95 : 0.05, c, H, bgs, dir))[0]; // faintest allowed
+  const far = dir < 0 ? 0.3 : 0.92; // strongest we allow
+  const candidates = Array.from({ length: 21 }, (_, i) => edge + ((far - edge) * i) / 20);
+  const chosen = [rgbToOklch(first)[0]];
+  while (chosen.length < 5) {
+    let best = candidates[0];
+    let bestGap = -1;
+    for (const l of candidates) {
+      const gap = Math.min(...chosen.map((x) => Math.abs(x - l)));
+      if (gap > bestGap) {
+        best = l;
+        bestGap = gap;
+      }
+    }
+    chosen.push(best);
+  }
+  return [first, ...chosen.slice(1).map((l) => fitLightness(l, c, H, bgs, dir))];
+}
+
 /**
  * Apply hand-picked colors. Everything that depends on them is re-derived by mixing the
  * page color toward the text color, so the whole UI stays one family.
@@ -391,6 +465,7 @@ function modeTokens(mode: Mode, brand: Brand | null, a: Appearance): ModeResult 
   let primary: RGB | null = null;
   let primaryFg = "";
   let accent: RGB | null = null;
+  let chart: RGB[] | null = null;
   if (brand) {
     primary = ensureContrast(brand.rgb, [P.background, P.card], towardFor(P.background), 3);
     primaryFg = onColor(primary);
@@ -404,6 +479,8 @@ function modeTokens(mode: Mode, brand: Brand | null, a: Appearance): ModeResult 
     tokens["sidebar-ring"] = hx(primary);
     tokens["accent"] = hx(accent);
     tokens["sidebar-accent"] = hx(accent);
+    chart = chartSeries(primary, [P.card], a.charts); // charts are drawn on cards
+    chart.forEach((c, i) => (tokens[`chart-${i + 1}`] = hx(c)));
   }
 
   if (surfaceActive) {
@@ -495,6 +572,10 @@ function modeTokens(mode: Mode, brand: Brand | null, a: Appearance): ModeResult 
   if (primary) {
     add("button", "Button text", hexToRgb(primaryFg), primary, 4.5);
     add("brand", "Brand color on page", primary, P.background, 3);
+  }
+  if (chart) {
+    const worst = Math.min(...chart.map((c) => cr(c, P.card)));
+    checks.push({ id: "charts", label: "Chart colors", ratio: Math.round(worst * 10) / 10, min: 3, ok: worst >= 3 - 0.001 });
   }
 
   return {
@@ -613,17 +694,22 @@ const look = (p: Partial<Omit<Appearance, "overrides">>): Appearance => ({ ...DE
 export const PRESETS: Preset[] = [
   { id: "classic", name: "Classic", note: "Clean black and white", brand: "", appearance: look({}) },
   { id: "ocean", name: "Ocean", note: "Cool and calm", brand: "#2563EB", appearance: look({ surface: "cool", intensity: "soft", sidebar: "tinted" }) },
-  { id: "forest", name: "Forest", note: "Natural and warm", brand: "#15803D", appearance: look({ surface: "warm", intensity: "soft", sidebar: "tinted" }) },
+  { id: "forest", name: "Forest", note: "Natural and warm", brand: "#15803D", appearance: look({ surface: "warm", intensity: "soft", sidebar: "tinted", charts: "shades" }) },
   { id: "sunset", name: "Sunset", note: "Friendly and bright", brand: "#EA580C", appearance: look({ surface: "warm", intensity: "soft", sidebar: "match", radius: "soft" }) },
   { id: "rose", name: "Rose", note: "Soft and rounded", brand: "#E11D48", appearance: look({ surface: "brand", intensity: "subtle", sidebar: "match", radius: "round" }) },
   { id: "midnight", name: "Midnight", note: "Dark sidebar, indigo accents", brand: "#6366F1", appearance: look({ surface: "cool", intensity: "subtle", sidebar: "dark" }) },
-  { id: "violet", name: "Violet", note: "Bold brand sidebar", brand: "#7C3AED", appearance: look({ surface: "brand", intensity: "subtle", sidebar: "brand", radius: "soft" }) },
+  { id: "violet", name: "Violet", note: "Bold brand sidebar", brand: "#7C3AED", appearance: look({ surface: "brand", intensity: "subtle", sidebar: "brand", radius: "soft", charts: "shades" }) },
   { id: "graphite", name: "Graphite", note: "Sharp and professional", brand: "#27272A", appearance: look({ surface: "neutral", sidebar: "dark", radius: "sharp" }) },
 ];
 
 /* ----------------------------------------------------------------------------
  * Scoped previews (settings page): full token set for one mode
  * ------------------------------------------------------------------------- */
+
+const CHART_DEFAULT_L = [0.87, 0.556, 0.439, 0.371, 0.269]; // same in both modes in global.css
+const CHART_DEFAULTS: Record<string, string> = Object.fromEntries(
+  CHART_DEFAULT_L.map((l, i) => [`chart-${i + 1}`, `oklch(${l} 0 0)`]),
+);
 
 const DEFAULT_CSS: Record<Mode, Record<string, string>> = {
   light: {
@@ -633,6 +719,7 @@ const DEFAULT_CSS: Record<Mode, Record<string, string>> = {
     accent: "oklch(0.97 0 0)", "accent-foreground": "oklch(0.205 0 0)", border: "oklch(0.922 0 0)", input: "oklch(0.922 0 0)", ring: "oklch(0.708 0 0)",
     sidebar: "oklch(0.985 0 0)", "sidebar-foreground": "oklch(0.145 0 0)", "sidebar-primary": "oklch(0.205 0 0)", "sidebar-primary-foreground": "oklch(0.985 0 0)",
     "sidebar-accent": "oklch(0.97 0 0)", "sidebar-accent-foreground": "oklch(0.205 0 0)", "sidebar-border": "oklch(0.922 0 0)", "sidebar-ring": "oklch(0.708 0 0)",
+    ...CHART_DEFAULTS,
   },
   dark: {
     background: "oklch(0.145 0 0)", foreground: "oklch(0.985 0 0)", card: "oklch(0.205 0 0)", "card-foreground": "oklch(0.985 0 0)",
@@ -641,6 +728,7 @@ const DEFAULT_CSS: Record<Mode, Record<string, string>> = {
     accent: "oklch(0.269 0 0)", "accent-foreground": "oklch(0.985 0 0)", border: "oklch(1 0 0 / 10%)", input: "oklch(1 0 0 / 15%)", ring: "oklch(0.556 0 0)",
     sidebar: "oklch(0.205 0 0)", "sidebar-foreground": "oklch(0.985 0 0)", "sidebar-primary": "oklch(0.488 0.243 264.376)", "sidebar-primary-foreground": "oklch(0.985 0 0)",
     "sidebar-accent": "oklch(0.269 0 0)", "sidebar-accent-foreground": "oklch(0.985 0 0)", "sidebar-border": "oklch(1 0 0 / 10%)", "sidebar-ring": "oklch(0.556 0 0)",
+    ...CHART_DEFAULTS,
   },
 };
 
@@ -651,4 +739,13 @@ export function previewVars(mode: Mode, theme: ThemeResult): Record<string, stri
   for (const [k, v] of Object.entries(merged)) vars[`--${k}`] = v;
   vars["--radius"] = theme.radius ?? "0.625rem";
   return vars;
+}
+
+/**
+ * The five chart colors as plain hex strings for one mode, for libraries that cannot read
+ * CSS variables (canvas charts, maps, exports). CSS-variable charts should use chartColor().
+ */
+export function chartPalette(mode: Mode, brandColor: string | null | undefined, appearance?: unknown): string[] {
+  const tokens = buildTheme(brandColor, appearance)[mode].tokens;
+  return CHART_DEFAULT_L.map((l, i) => tokens[`chart-${i + 1}`] ?? hx(snap(ok(l, 0, 0))));
 }

@@ -1,7 +1,7 @@
 "use client";
 import { gqlFetch } from "@/lib/graphql-client";
 import { LOGIN_MUTATION, LOGOUT_MUTATION } from "@/lib/mutation";
-import { EFFECTIVE_PERMISSION_QUERY, ME_QUERY } from "@/lib/queries";
+import {  EFFECTIVE_PERMISSION_QUERY, ME_QUERY } from "@/lib/queries";
 import {
   createContext,
   ReactNode,
@@ -21,7 +21,7 @@ type User = {
   fullName: string;
   phone: string;
   avatar: ImageRef;
-  isSuperuser: boolean;
+  hasFounderAccess: boolean;
   company: { id: string; name: string } | null;
 };
 
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const hasPermission = (codename: string) =>
-    !!user?.isSuperuser || permissions.includes(codename);
+    !!user?.hasFounderAccess || permissions.includes(codename);
 
   return (
     <AuthContext.Provider
@@ -298,7 +298,7 @@ export function useAuth() {
 // A User object must have an id, and that id must be a string.
 
 // Boolean
-// isSuperuser: boolean;
+// hasFounderAccess: boolean;
 
 // boolean means:
 
@@ -310,11 +310,11 @@ export function useAuth() {
 
 // So:
 
-// isSuperuser: boolean;
+// hasFounderAccess: boolean;
 
 // means:
 
-// isSuperuser must be either true or false.
+// hasFounderAccess must be either true or false.
 
 // 9. Nested object
 
@@ -1466,17 +1466,17 @@ export function useAuth() {
 
 // This line is VERY important:
 
-// !!user?.isSuperuser
+// !!user?.hasFounderAccess
 
 // Let's break it down.
 
 // Normally:
 
-// user.isSuperuser
+// user.hasFounderAccess
 
 // means:
 
-// Get isSuperuser from user.
+// Get hasFounderAccess from user.
 
 // But what if:
 
@@ -1484,23 +1484,23 @@ export function useAuth() {
 
 // Then:
 
-// user.isSuperuser
+// user.hasFounderAccess
 
 // would cause an error.
 
 // So JavaScript provides:
 
-// user?.isSuperuser
+// user?.hasFounderAccess
 
 // The ?. means:
 
-// "Only access isSuperuser if user exists."
+// "Only access hasFounderAccess if user exists."
 
 // 54. Double !!
 
 // Now:
 
-// !!user?.isSuperuser
+// !!user?.hasFounderAccess
 
 // The first:
 
@@ -1518,7 +1518,7 @@ export function useAuth() {
 
 // So:
 
-// !!user?.isSuperuser
+// !!user?.hasFounderAccess
 
 // effectively gives:
 
@@ -1531,7 +1531,7 @@ export function useAuth() {
 
 // Now:
 
-// !!user?.isSuperuser || permissions.includes(codename)
+// !!user?.hasFounderAccess || permissions.includes(codename)
 
 // || means:
 
@@ -1565,7 +1565,7 @@ export function useAuth() {
 // This:
 
 // const hasPermission = (codename: string) =>
-//   !!user?.isSuperuser || permissions.includes(codename);
+//   !!user?.hasFounderAccess || permissions.includes(codename);
 
 // is an arrow function.
 

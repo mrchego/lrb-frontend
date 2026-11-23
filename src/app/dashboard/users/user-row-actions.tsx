@@ -71,16 +71,16 @@ export function UserRowActions({
 
           <DropdownMenuSeparator />
 
-          {target.isSuperuser ? (
-            !target.isFounder && (
+          {target.hasFounderAccess ? (
+            target.isCofounder && (
               <UserActionButton
                 userId={target.id}
                 disabled={isSelf}
                 disabledReason="You can't demote your own account."
                 action="demote"
                 icon={ShieldOff}
-                label="Remove owner access"
-                confirmMessage={`Remove owner access from ${target.email}? They'll keep their account but lose all owner permissions.`}
+                label="Remove co-founder access"
+                confirmMessage={`Remove co-founder access from ${target.email}? They keep their account but lose all founder-level permissions.`}
                 onDone={mutateUsers}
               />
             )
@@ -89,8 +89,8 @@ export function UserRowActions({
               userId={target.id}
               action="promote"
               icon={ShieldCheck}
-              label="Make owner"
-              confirmMessage={`Give ${target.email} full owner access? They'll be able to manage all users, billing, and settings.`}
+              label="Make co-founder"
+              confirmMessage={`Make ${target.email} a co-founder? They will have the same powers as the founder.`}
               onDone={mutateUsers}
             />
           )}
@@ -160,7 +160,7 @@ export function UserRowActions({
           {!isDeleted && (
             <UserActionButton
               userId={target.id}
-              disabled={isSelf || target.isSuperuser}
+              disabled={isSelf || target.hasFounderAccess}
               disabledReason={
                 isSelf
                   ? "You can't delete your own account."

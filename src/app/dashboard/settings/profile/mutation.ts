@@ -5,7 +5,7 @@ export const UPDATE_PROFILE_MUTATION = `
       user {
         id email firstName lastName fullName phone
         avatar { url name }
-        isSuperuser
+        hasFounderAccess
         company { id name }
       }
       errors { message code field }

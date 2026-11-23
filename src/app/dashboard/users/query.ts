@@ -4,7 +4,7 @@ export const USERS_QUERY = `
       totalCount
       items {
         id email firstName lastName fullName phone
-        isSuperuser isStaff isFounder canLogin isActive isLocked
+        isFounder isCofounder hasFounderAccess roles { id name } hasCustomPermissions canLogin isActive isLocked
         passwordResetRequired failedLoginAttempts lockedUntil
         lastLogin createdAt
         company { id name }
@@ -12,3 +12,4 @@ export const USERS_QUERY = `
     }
   }
 `;
+

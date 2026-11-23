@@ -31,7 +31,8 @@ import {
   STAFF_MEMBERS_QUERY,
   INVITATIONS_QUERY,
 } from "./query";
-
+import type { Permission, Role } from "../roles/type";
+import { AccessPicker, EMPTY_ACCESS, type AccessValue } from "./access-picker";
 import { INVITE_STAFF_MUTATION } from "./mutation";
 
 import { StaffMembersTable } from "./staff-members-table";
@@ -45,8 +46,7 @@ import {
 } from "./type";
 import { toast } from "react-toastify";
 import { Loading } from "@/components/loading";
-
-type Role = { id: string; name: string };
+import { PERMISSIONS_QUERY } from "../roles/query";
 
 export default function StaffPage() {
   return (
@@ -69,6 +69,8 @@ function StaffPageContent() {
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [recordsOnly, setRecordsOnly] = useState<ManagedUser[]>([]);
   const [loadingRecordsOnly, setLoadingRecordsOnly] = useState(true);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [access, setAccess] = useState<AccessValue>(EMPTY_ACCESS);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<{
@@ -76,8 +78,12 @@ function StaffPageContent() {
     firstName: string;
     lastName: string;
     canLogin: boolean;
-    roleId: string | null;
-  }>({ email: "", firstName: "", lastName: "", canLogin: true, roleId: null });
+  }>({
+    email: "",
+    firstName: "",
+    lastName: "",
+    canLogin: true,
+  });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -90,6 +96,18 @@ function StaffPageContent() {
     try {
       const res = await gqlFetch<{ roles: Role[] }>(ROLES_QUERY);
       setRoles(res.roles);
+    } catch (err) {
+      showError(err);
+    }
+  };
+
+  const loadPermissions = async () => {
+    try {
+      const res = await gqlFetch<{ permissions: Permission[] }>(
+        PERMISSIONS_QUERY,
+      );
+
+      setPermissions(res.permissions);
     } catch (err) {
       showError(err);
     }
@@ -146,9 +164,11 @@ function StaffPageContent() {
 
   useEffect(() => {
     loadRoles();
+    loadPermissions();
     loadMembers();
     loadInvitations();
     loadRecordsOnly();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -167,10 +187,24 @@ function StaffPageContent() {
 
   const handleInvite = async () => {
     setSubmitting(true);
+
     try {
       const data = await gqlFetch<{
-        inviteStaff: { success: boolean; invitation: any; errors: any[] };
-      }>(INVITE_STAFF_MUTATION, { ...form });
+        inviteStaff: {
+          success: boolean;
+          invitation: any;
+          errors: any[];
+        };
+      }>(INVITE_STAFF_MUTATION, {
+        email: form.email,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        canLogin: form.canLogin,
+        roleId: form.canLogin ? access.roleId : null,
+        permissionCodenames: form.canLogin
+          ? Array.from(access.codenames)
+          : null,
+      });
 
       if (data.inviteStaff.success) {
         toast.success(
@@ -178,15 +212,19 @@ function StaffPageContent() {
             ? `Invitation sent to ${form.email}.`
             : `${form.firstName} ${form.lastName} added as a staff record (no system login).`,
         );
+
         setOpen(false);
+
         await refreshAfterInvite(form.canLogin);
+
         setForm({
           email: "",
           firstName: "",
           lastName: "",
           canLogin: true,
-          roleId: null,
         });
+
+        setAccess(EMPTY_ACCESS);
       } else {
         toast.error(
           data.inviteStaff.errors?.[0]?.message ?? "Failed to add staff.",
@@ -208,14 +246,14 @@ function StaffPageContent() {
         <div>
           <h1 className="text-2xl font-semibold">Staff</h1>
           <p className="text-sm text-muted-foreground">
-            Only the owner can manage staff, invitations, and login access.
+            "Manage staff members, roles, and access."
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button className="w-full sm:w-auto" />}>
             Add Staff
           </DialogTrigger>
-          <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-lg">
+          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Staff</DialogTitle>
             </DialogHeader>
@@ -242,13 +280,18 @@ function StaffPageContent() {
                 <Checkbox
                   className="mt-0.5 sm:mt-0"
                   checked={form.canLogin}
-                  onCheckedChange={(v) =>
+                  onCheckedChange={(v) => {
+                    const canLogin = !!v;
+
                     setForm((f) => ({
                       ...f,
-                      canLogin: !!v,
-                      roleId: v ? f.roleId : null,
-                    }))
-                  }
+                      canLogin,
+                    }));
+
+                    if (!canLogin) {
+                      setAccess(EMPTY_ACCESS);
+                    }
+                  }}
                 />
                 <div>
                   <p className="text-sm font-medium">
@@ -263,24 +306,13 @@ function StaffPageContent() {
 
               {form.canLogin && (
                 <div className="col-span-1 sm:col-span-2">
-                  <Label>Role*</Label>
-                  <Select
-                    value={form.roleId ?? ""}
-                    onValueChange={(v) =>
-                      setForm((f) => ({ ...f, roleId: v || null }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AccessPicker
+                    roles={roles}
+                    permissions={permissions}
+                    value={access}
+                    onChange={setAccess}
+                    disabled={submitting}
+                  />
                 </div>
               )}
             </div>
@@ -298,7 +330,7 @@ function StaffPageContent() {
                   submitting ||
                   !form.email ||
                   !form.firstName ||
-                  (form.canLogin && !form.roleId)
+                  (form.canLogin && !access.roleId)
                 }
                 className="w-full sm:w-auto"
               >
@@ -330,6 +362,8 @@ function StaffPageContent() {
             members={members}
             isLoading={loadingMembers}
             currentUserId={user.id}
+            roles={roles}
+            permissions={permissions}
             onRefresh={loadMembers}
           />
         </TabsContent>

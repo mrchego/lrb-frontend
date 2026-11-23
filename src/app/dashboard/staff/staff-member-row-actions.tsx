@@ -8,72 +8,123 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ShieldOff } from "lucide-react";
+import { MoreHorizontal, ShieldOff, ShieldCheck } from "lucide-react";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { DEMOTE_STAFF_FROM_LOGIN_MUTATION } from "./mutation";
 import type { StaffMember } from "./type";
 import { useConfirm } from "@/components/confirm-provider";
 import { toast } from "react-toastify";
+import type { Permission, Role } from "../roles/type";
+import { EditStaffAccessDialog } from "./edit-staff-access-dialog";
+
 
 export function StaffMemberRowActions({
   target,
   currentUserId,
+  roles,
+  permissions,
   onDone,
 }: {
   target: StaffMember;
   currentUserId: string;
+  roles: Role[];
+  permissions: Permission[];
   onDone: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
   const isSelf = target.id === currentUserId;
 
   const confirm = useConfirm();
 
   const handleDemote = async () => {
     if (submitting) return;
+
     const ok = await confirm({
-    description: `Remove ${target.email}'s login access? Their role assignments will be cleared and any pending invitation cancelled.`,
-    confirmLabel: "Remove access",
-    destructive: true,
-  });
-  if (!ok) return;
+      description: `Remove ${target.email}'s login access? Their role assignments will be cleared and any pending invitation cancelled.`,
+      confirmLabel: "Remove access",
+      destructive: true,
+    });
+
+    if (!ok) return;
+
     setSubmitting(true);
+
     try {
       const data = await gqlFetch<{
-        demoteStaffFromLogin: { success: boolean; errors: any[] };
-      }>(DEMOTE_STAFF_FROM_LOGIN_MUTATION, { userId: target.id });
+        demoteStaffFromLogin: {
+          success: boolean;
+          errors: any[];
+        };
+      }>(DEMOTE_STAFF_FROM_LOGIN_MUTATION, {
+        userId: target.id,
+      });
+
       if (data.demoteStaffFromLogin.success) {
         toast.success(`Login access removed for ${target.email}.`);
         onDone();
       } else {
-        toast.error(data.demoteStaffFromLogin.errors?.[0]?.message ?? "Could not remove access.");
+        toast.error(
+          data.demoteStaffFromLogin.errors?.[0]?.message ??
+            "Could not remove access.",
+        );
       }
     } catch (err) {
-      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
+      toast.error(
+        err instanceof GraphQLError
+          ? err.message
+          : "Something went wrong.",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" className="h-8 w-8 p-0" />}>
-        <>
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          disabled={submitting || isSelf}
-          title={isSelf ? "You can't remove your own login access." : undefined}
-          onClick={handleDemote}
-          className="text-red-600 focus:text-red-600"
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" className="h-8 w-8 p-0" />}
         >
-          <ShieldOff className="mr-2 h-4 w-4" />
-          Remove login access
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <>
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end">
+          {!target.hasFounderAccess && target.canLogin && (
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Edit role & permissions
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem
+            disabled={submitting || isSelf}
+            title={
+              isSelf
+                ? "You can't remove your own login access."
+                : undefined
+            }
+            onClick={handleDemote}
+            className="text-red-600 focus:text-red-600"
+          >
+            <ShieldOff className="mr-2 h-4 w-4" />
+            Remove login access
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <EditStaffAccessDialog
+        target={target}
+        roles={roles}
+        permissions={permissions}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={onDone}
+      />
+    </>
   );
 }

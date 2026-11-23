@@ -4,16 +4,21 @@ import { Badge } from "@/components/ui/badge";
 import type { StaffMember } from "./type";
 import { StaffMemberRowActions } from "./staff-member-row-actions";
 import { Loading } from "@/components/loading";
-
+import type { Role, Permission } from "../roles/type";
+import { RoleCell } from "../roles/role-cell";
 export function StaffMembersTable({
   members,
   isLoading,
   currentUserId,
+  roles,
+  permissions,
   onRefresh,
 }: {
   members: StaffMember[];
   isLoading: boolean;
   currentUserId: string;
+  roles: Role[];
+  permissions: Permission[];
   onRefresh: () => void;
 }) {
   return (
@@ -23,10 +28,17 @@ export function StaffMembersTable({
           <thead className="border-b bg-muted/20">
             <tr>
               <th className="text-left p-3 font-medium">Email</th>
-              <th className="hidden sm:table-cell text-left p-3 font-medium">Name</th>
-              <th className="hidden lg:table-cell text-left p-3 font-medium">Phone</th>
+              <th className="hidden sm:table-cell text-left p-3 font-medium">
+                Name
+              </th>
+              <th className="hidden lg:table-cell text-left p-3 font-medium">
+                Phone
+              </th>
+              {/* <th className="text-left p-3 font-medium">Role</th> */}
               <th className="text-left p-3 font-medium">Status</th>
-              <th className="hidden md:table-cell text-left p-3 font-medium">Last login</th>
+              <th className="hidden md:table-cell text-left p-3 font-medium">
+                Last login
+              </th>
               <th className="w-10 p-3" />
             </tr>
           </thead>
@@ -34,12 +46,15 @@ export function StaffMembersTable({
             {isLoading ? (
               <tr>
                 <td colSpan={6}>
-                  <Loading/>
+                  <Loading />
                 </td>
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                <td
+                  colSpan={6}
+                  className="p-6 text-center text-muted-foreground"
+                >
                   No staff members yet.
                 </td>
               </tr>
@@ -56,8 +71,13 @@ export function StaffMembersTable({
                         {m.fullName || "—"}
                       </div>
                     </td>
-                    <td className="hidden sm:table-cell p-3">{m.fullName || "—"}</td>
-                    <td className="hidden lg:table-cell p-3">{m.phone || "—"}</td>
+                    <td className="hidden sm:table-cell p-3">
+                      {m.fullName || "—"}
+                    </td>
+                    <td className="hidden lg:table-cell p-3">
+                      {m.phone || "—"}
+                    </td>
+                    {/* <td className="p-3"><RoleCell user={m} /></td> */}
                     <td className="p-3">
                       {isDeleted ? (
                         <Badge className="bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -80,12 +100,16 @@ export function StaffMembersTable({
                       )}
                     </td>
                     <td className="hidden md:table-cell p-3 text-muted-foreground">
-                      {m.lastLogin ? new Date(m.lastLogin).toLocaleDateString() : "Never"}
+                      {m.lastLogin
+                        ? new Date(m.lastLogin).toLocaleDateString()
+                        : "Never"}
                     </td>
                     <td className="p-3">
                       <StaffMemberRowActions
                         target={m}
                         currentUserId={currentUserId}
+                        roles={roles}
+                        permissions={permissions}
                         onDone={onRefresh}
                       />
                     </td>

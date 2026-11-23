@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrandColorPicker } from "@/components/brand-color-picker";
+import { ThemeFrame } from "@/components/theme-preview";
 import { isHexColor } from "@/lib/brand-color";
 import {
   COLOR_SLOTS,
@@ -13,6 +14,7 @@ import {
   normalizeAppearance,
   recommendFor,
   type Appearance,
+  type ChartStyle,
   type ColorSlot,
   type Intensity,
   type Mode,
@@ -21,7 +23,6 @@ import {
   type SidebarStyle,
   type Surface,
 } from "@/lib/theme-engine";
-import { ThemeFrame } from "./theme-preview";
 
 export type AppearanceValue = { brandColor: string; appearance: Appearance };
 
@@ -54,6 +55,10 @@ const RADIUS_OPTIONS: { value: Radius; label: string }[] = [
   { value: "soft", label: "Soft" },
   { value: "round", label: "Round" },
 ];
+const CHART_OPTIONS: { value: ChartStyle; label: string }[] = [
+  { value: "varied", label: "Varied" },
+  { value: "shades", label: "Brand shades" },
+];
 const SLOT_LABELS: Record<ColorSlot, string> = {
   background: "Page background",
   card: "Cards and menus",
@@ -71,6 +76,7 @@ function sameLook(a: Appearance, brand: string, p: Preset) {
     a.surface === p.appearance.surface &&
     a.sidebar === p.appearance.sidebar &&
     a.radius === p.appearance.radius &&
+    a.charts === p.appearance.charts &&
     (a.surface === "neutral" || a.intensity === p.appearance.intensity) &&
     !hasOverrides(a)
   );
@@ -294,6 +300,18 @@ export function AppearanceEditor({ brandColor, appearance, onChange }: Props) {
           options={SIDEBAR_OPTIONS}
           onChange={(sidebar) => update({ sidebar })}
           suggested={hasBrand ? rec.sidebar : undefined}
+        />
+        <Segmented
+          label="Chart colors"
+          hint={
+            hasBrand
+              ? "Varied gives each series its own hue, matched to your brand color. Brand shades keeps every chart in one color family."
+              : "Pick a brand color first. Charts take their colors from it."
+          }
+          value={a.charts}
+          options={CHART_OPTIONS}
+          onChange={(charts) => update({ charts })}
+          disabled={!hasBrand}
         />
         <Segmented
           label="Corners"

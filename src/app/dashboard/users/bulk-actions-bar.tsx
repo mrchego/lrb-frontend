@@ -68,7 +68,7 @@ const ACTIONS: {
     destructive: true,
     separatorBefore: true,
     message: (c, p) =>
-      `Delete ${c} ${p}? This disables their accounts and login access. Owner accounts and your own account will be skipped automatically.`,
+      `Delete ${c} ${p}? This disables their accounts and login access.  Founder accounts and your own account will be skipped automatically.`,
   },
   {
     action: "restore",

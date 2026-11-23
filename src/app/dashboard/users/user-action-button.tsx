@@ -11,8 +11,8 @@ import {
   UNLOCK_USER_MUTATION,
   FORCE_PASSWORD_RESET_MUTATION,
   RESTORE_USER_MUTATION,
-  PROMOTE_TO_OWNER_MUTATION,
-  DEMOTE_OWNER_MUTATION,
+  PROMOTE_TO_COFOUNDER_MUTATION,
+  DEMOTE_COFOUNDER_MUTATION,
 } from "./mutation";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "react-toastify";
@@ -44,8 +44,8 @@ const ACTION_MAP: Record<
     success: "Password reset required on next login.",
   },
   restore: { query: RESTORE_USER_MUTATION, field: "restoreUser", success: "User restored." },
-  promote: { query: PROMOTE_TO_OWNER_MUTATION, field: "promoteToOwner", success: "User is now an owner." },
-  demote: { query: DEMOTE_OWNER_MUTATION, field: "demoteOwner", success: "Owner access removed." },
+  promote: { query: PROMOTE_TO_COFOUNDER_MUTATION, field: "promoteToCofounder", success: "User is now a co-founder." },
+  demote: { query: DEMOTE_COFOUNDER_MUTATION, field: "demoteCofounder", success: "Co-founder access removed." },
 };
 
 export function UserActionButton({
@@ -182,8 +182,8 @@ export function UserActionButton({
 //   UNLOCK_USER_MUTATION,
 //   FORCE_PASSWORD_RESET_MUTATION,
 //   RESTORE_USER_MUTATION,
-//   PROMOTE_TO_OWNER_MUTATION,
-//   DEMOTE_OWNER_MUTATION,
+//   PROMOTE_TO_COFOUNDER_MUTATION,
+//   DEMOTE_COFOUNDER_MUTATION,
 // } from "./mutation";
 
 // These are imported from your local mutation file.
@@ -197,8 +197,8 @@ export function UserActionButton({
 // UNLOCK_USER_MUTATION	Unlock a user
 // FORCE_PASSWORD_RESET_MUTATION	Require a password reset
 // RESTORE_USER_MUTATION	Restore a user
-// PROMOTE_TO_OWNER_MUTATION	Promote a user to owner
-// DEMOTE_OWNER_MUTATION	Demote an owner
+// PROMOTE_TO_COFOUNDER_MUTATION	Promote a user to owner
+// DEMOTE_COFOUNDER_MUTATION	Demote an owner
 
 // The actual GraphQL operations are defined in mutation.ts or mutation.tsx, depending on your project.
 // Important distinction: This component doesn't define what each mutation does on the server. It selects the appropriate mutation and sends it to the API.
@@ -252,8 +252,8 @@ export function UserActionButton({
 //     field: "forcePasswordReset",
 //   },
 //   restore: { query: RESTORE_USER_MUTATION, field: "restoreUser" },
-//   promote: { query: PROMOTE_TO_OWNER_MUTATION, field: "promoteToOwner" },
-//   demote: { query: DEMOTE_OWNER_MUTATION, field: "demoteOwner" },
+//   promote: { query: PROMOTE_TO_COFOUNDER_MUTATION, field: "promoteToCofounder" },
+//   demote: { query: DEMOTE_COFOUNDER_MUTATION, field: "demoteCofounder" },
 // };
 
 // Let's break this down.
@@ -898,3 +898,4 @@ export function UserActionButton({
 
 // Checks for success and tells the parent component to perform its follow-up action.
 // Once you understand those three lines, the rest of the file is mainly about making the operation safe, reusable, and user-friendly.
+

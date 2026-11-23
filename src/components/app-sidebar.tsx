@@ -42,7 +42,7 @@ const links = [
     href: "/dashboard/users",
     label: "Users",
     icon: Users,
-    superuserOnly: true,
+    founderOnly: true,
   },
   {
     href: "/dashboard/products",
@@ -54,13 +54,13 @@ const links = [
     href: "/dashboard/staff",
     label: "Staff",
     icon: Users,
-    superuserOnly: true,
+    founderOnly: true,
   },
   {
     href: "/dashboard/roles",
     label: "Roles",
     icon: Shield,
-    superuserOnly: true,
+    founderOnly: true,
   },
 ];
 
@@ -71,7 +71,7 @@ export function AppSidebar() {
   const { company, activeLogo } = useCompanyLogo();
 
   const visibleLinks = links.filter((link) => {
-    if (link.superuserOnly) return !!user?.isSuperuser;
+    if (link.founderOnly) return !!user?.hasFounderAccess;
     if (link.permission) return hasPermission(link.permission);
     return true;
   });
@@ -112,7 +112,7 @@ export function AppSidebar() {
                   {user?.email}
                 </div>
                 <DropdownMenuSeparator />
-                {user?.isSuperuser && (
+                {user?.hasFounderAccess && (
                   <DropdownMenuItem
                     render={<Link href="/dashboard/settings/company" />}
                   >
@@ -286,35 +286,35 @@ export function AppSidebar() {
 
 // Each time, your function decides whether that particular link should remain in visibleLinks.
 
-// 3. First condition: superuserOnly
-// if (link.superuserOnly) return !!user?.isSuperuser;
+// 3. First condition: founderOnly
+// if (link.founderOnly) return !!user?.hasFounderAccess;
 
 // Let's read it from the outside inward.
 
-// Part A: link.superuserOnly
+// Part A: link.founderOnly
 
-// This accesses the superuserOnly property of the current link.
+// This accesses the founderOnly property of the current link.
 
 // For example:
 
 // {
 //   name: "Admin Panel",
-//   superuserOnly: true
+//   founderOnly: true
 // }
 
 // Here:
 
-// link.superuserOnly
+// link.founderOnly
 
 // evaluates to true.
 
 // The condition:
 
-// if (link.superuserOnly)
+// if (link.founderOnly)
 
 // means: "If this link is marked as available only to superusers, execute the next statement."
 
-// Part B: user?.isSuperuser
+// Part B: user?.hasFounderAccess
 
 // You get user from your authentication provider:
 
@@ -322,17 +322,17 @@ export function AppSidebar() {
 
 // Your User type includes:
 
-// isSuperuser: boolean;
+// hasFounderAccess: boolean;
 
-// That means isSuperuser should be either true or false when a user object exists.
+// That means hasFounderAccess should be either true or false when a user object exists.
 
 // The expression:
 
-// user?.isSuperuser
+// user?.hasFounderAccess
 
 // means:
 
-// If user exists, read its isSuperuser property.
+// If user exists, read its hasFounderAccess property.
 
 // If user is null or undefined, return undefined instead of throwing an error.
 
@@ -386,7 +386,7 @@ export function AppSidebar() {
 
 // Therefore:
 
-// return !!user?.isSuperuser;
+// return !!user?.hasFounderAccess;
 
 // means: "Return true if the user is a superuser; otherwise, return false."
 
@@ -423,7 +423,7 @@ export function AppSidebar() {
 // Remember your authentication provider's function:
 
 // const hasPermission = (codename: string) =>
-//   !!user?.isSuperuser || permissions.includes(codename);
+//   !!user?.hasFounderAccess || permissions.includes(codename);
 
 // It returns true if either:
 
@@ -455,7 +455,7 @@ export function AppSidebar() {
 //   name: "Help"
 // }
 
-// It has neither superuserOnly nor permission.
+// It has neither founderOnly nor permission.
 
 // The function reaches:
 
@@ -475,11 +475,11 @@ export function AppSidebar() {
 
 // link is the current array item.
 
-// Does link.superuserOnly exist as a truthy value?
+// Does link.founderOnly exist as a truthy value?
 
 // Yes
 
-// Return !!user?.isSuperuser and finish checking this link.
+// Return !!user?.hasFounderAccess and finish checking this link.
 
 // No
 
@@ -508,13 +508,13 @@ export function AppSidebar() {
 // const links = [
 //   { name: "Dashboard" },
 //   { name: "Users", permission: "view_users" },
-//   { name: "Admin", superuserOnly: true },
+//   { name: "Admin", founderOnly: true },
 // ];
 
 // And the current user has:
 
 // user = {
-//   isSuperuser: false,
+//   hasFounderAccess: false,
 //   // Other user properties...
 // };
 

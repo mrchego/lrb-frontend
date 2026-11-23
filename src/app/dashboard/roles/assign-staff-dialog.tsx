@@ -81,7 +81,7 @@ export function AssignStaffDialog({
     })
       .then((d) => {
         if (id !== requestId.current) return;
-        setUsers(d.users.items.filter((u) => !u.isSuperuser));
+        setUsers(d.users.items.filter((u) => !u.hasFounderAccess));
         setFetchedCount(d.users.items.length);
         setTotalCount(d.users.totalCount);
       })
@@ -109,7 +109,7 @@ export function AssignStaffDialog({
       if (id !== requestId.current) return;
       setUsers((prev) => [
         ...prev,
-        ...d.users.items.filter((u) => !u.isSuperuser),
+        ...d.users.items.filter((u) => !u.hasFounderAccess),
       ]);
       setFetchedCount((c) => c + d.users.items.length);
       setTotalCount(d.users.totalCount);
@@ -284,7 +284,7 @@ export function AssignStaffDialog({
 
 // When the data comes back, it filters out:
 
-// Superusers (!u.isSuperuser)
+// Superusers (!u.hasFounderAccess)
 
 // Users already assigned (!existingUserIds.has(u.id))
 
@@ -363,3 +363,4 @@ export function AssignStaffDialog({
 // The mental model: “Open dialog → fetch users → filter/search → select → assign.”
 
 // Would you like me to now trace the GraphQL mutation response shape (BulkRoleActionResult) so you can see exactly what fields you can expect back and how they’re used in handleAssign?
+

@@ -38,14 +38,24 @@ export const DEMOTE_STAFF_FROM_LOGIN_MUTATION = `
 `;
 
 export const INVITE_STAFF_MUTATION = `
-  mutation InviteStaff($email: String!, $firstName: String!, $lastName: String!, $canLogin: Boolean!, $roleId: ID) {
-    inviteStaff(input: { email: $email, firstName: $firstName, lastName: $lastName, canLogin: $canLogin, roleId: $roleId }) {
+  mutation InviteStaff($email: String!, $firstName: String!, $lastName: String!, $canLogin: Boolean!, $roleId: ID, $permissionCodenames: [String!]) {
+    inviteStaff(input: { email: $email, firstName: $firstName, lastName: $lastName, canLogin: $canLogin, roleId: $roleId, permissionCodenames: $permissionCodenames }) {
       success
       invitation { id email roleName }
       errors { message code field }
     }
   }
 `;
+
+export const UPDATE_STAFF_ACCESS_MUTATION = `
+  mutation UpdateStaffAccess($input: UpdateStaffAccessInput!) {
+    updateStaffAccess(input: $input) {
+      success
+      errors { message code field }
+    }
+  }
+`;
+
 
 export const BULK_REVOKE_INVITATIONS_MUTATION = `
   mutation BulkRevokeInvitations($invitationIds: [ID!]!) {

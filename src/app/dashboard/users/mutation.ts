@@ -42,18 +42,18 @@ export const RESTORE_USER_MUTATION = `
   }
 `;
 
-export const PROMOTE_TO_OWNER_MUTATION = `
-  mutation PromoteToOwner($userId: ID!) {
-    promoteToOwner(input: { userId: $userId }) {
+export const PROMOTE_TO_COFOUNDER_MUTATION = `
+  mutation promoteToCofounder($userId: ID!) {
+    promoteToCofounder(input: { userId: $userId }) {
       success
       errors { message code field }
     }
   }
 `;
 
-export const DEMOTE_OWNER_MUTATION = `
-  mutation DemoteOwner($userId: ID!) {
-    demoteOwner(input: { userId: $userId }) {
+export const DEMOTE_COFOUNDER_MUTATION = `
+  mutation demoteCofounder($userId: ID!) {
+    demoteCofounder(input: { userId: $userId }) {
       success
       errors { message code field }
     }
@@ -125,3 +125,4 @@ export const BULK_RESTORE_USERS_MUTATION = `
     }
   }
 `;
+

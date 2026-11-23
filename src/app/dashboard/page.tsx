@@ -9,6 +9,7 @@ import { SummaryAreaChart } from "./summary-area-chart";
 import { SummaryCard } from "./summary-cards";
 import { Loading } from "@/components/loading";
 import { useCompanyMoney } from "@/lib/use-company-money";
+import { chartColor } from "@/lib/chart-theme";
 
 export default function DashboardHome() {
   const { user, hasPermission, loading: authLoading } = useAuth();
@@ -29,7 +30,7 @@ export default function DashboardHome() {
   const dashboard = data?.dashboard;
   const canViewProducts = hasPermission("products.view_product");
   const canViewOrders = hasPermission("orders.view_order");
-  const canViewUsers = !!user?.isSuperuser;
+  const canViewUsers = !!user?.hasFounderAccess;
 
   const nothingVisible = !canViewProducts && !canViewOrders && !canViewUsers;
 
@@ -59,7 +60,7 @@ export default function DashboardHome() {
             description="Last 30 days"
             data={dashboard.products.createdLast30Days}
             dataKey="products"
-            color="var(--chart-1)"
+            color={chartColor(0)}
           />
         </section>
       )}
@@ -80,14 +81,14 @@ export default function DashboardHome() {
               description="Last 30 days"
               data={dashboard.orders.ordersLast30Days}
               dataKey="orders"
-              color="var(--chart-2)"
+              color={chartColor(1)}
             />
             <SummaryAreaChart
               title="Revenue"
               description="Last 30 days"
               data={dashboard.orders.revenueLast30Days}
               dataKey="revenue"
-              color="var(--chart-3)"
+              color={chartColor(2)}
             />
           </div>
         </section>
@@ -107,7 +108,7 @@ export default function DashboardHome() {
             description="Last 30 days"
             data={dashboard.users.signupsLast30Days}
             dataKey="signups"
-            color="var(--chart-4)"
+            color={chartColor(3)}
           />
         </section>
       )}

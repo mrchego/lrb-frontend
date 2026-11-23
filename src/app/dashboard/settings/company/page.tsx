@@ -40,11 +40,11 @@ export default function CompanySettingsPage() {
   const { company, settings, loading, setCompany, setSettings, refetch } =
     useCompany();
 
-  if (!user?.isSuperuser) {
+  if (!user?.hasFounderAccess) {
     return (
       <div className="mx-auto max-w-lg py-16 px-4">
         <p className="text-sm text-muted-foreground">
-          Only the company owner can manage these settings.
+          Only the company founder or a co-founder can manage these settings.
         </p>
       </div>
     );
@@ -702,3 +702,4 @@ function Select({
 // setFile((previousFile) => selectedFile);
 
 // Both are valid ways to update React state, although the callback is most useful when the new value depends on the previous value.
+

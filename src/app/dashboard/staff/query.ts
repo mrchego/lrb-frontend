@@ -5,27 +5,28 @@ export const ROLES_QUERY = `
 `;
 
 export const USERS_QUERY = `
-  query Users($isActive: Boolean, $canLogin: Boolean, $search: String, $limit: Int, $offset: Int) {
-    users(isActive: $isActive, canLogin: $canLogin, search: $search, limit: $limit, offset: $offset) {
+  query Users($isActive: Boolean, $canLogin: Boolean, $search: String, $created: DateRangeInput, $limit: Int, $offset: Int) {
+    users(isActive: $isActive, canLogin: $canLogin, search: $search, created: $created, limit: $limit, offset: $offset) {
       totalCount
       items {
         id email firstName lastName fullName phone
-        isSuperuser isStaff isFounder canLogin isActive isLocked
+        isFounder isCofounder hasFounderAccess roles { id name } hasCustomPermissions canLogin isActive isLocked
         passwordResetRequired failedLoginAttempts lockedUntil
         lastLogin createdAt
         company { id name }
       }
     }
   }
-`; 
+`;
+
+
 
 export const STAFF_MEMBERS_QUERY = `
   query StaffMembers($canLogin: Boolean, $limit: Int, $offset: Int) {
     staffMembers(canLogin: $canLogin,limit: $limit, offset: $offset) {
       totalCount
       items {
-        id email firstName lastName fullName phone
-        canLogin isActive isLocked lastLogin createdAt
+        id email firstName lastName fullName phone hasFounderAccess roles { id name } hasCustomPermissions canLogin isActive isLocked lastLogin createdAt
         company { id name }
       }
     }

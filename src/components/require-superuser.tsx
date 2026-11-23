@@ -10,7 +10,7 @@ export function RequireSuperuser({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && (!user || !user.isSuperuser)) router.replace("/dashboard");
+    if (!loading && (!user || !user.hasFounderAccess)) router.replace("/dashboard");
   }, [loading, user, router]);
 
   if (loading)
@@ -19,6 +19,7 @@ export function RequireSuperuser({ children }: { children: React.ReactNode }) {
         <Loading />
       </div>
     );
-  if (!user?.isSuperuser) return null;
+  if (!user?.hasFounderAccess) return null;
   return <>{children}</>;
 }
+

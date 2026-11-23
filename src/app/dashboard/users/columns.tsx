@@ -55,24 +55,23 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
       cell: ({ row }) => row.original.company?.name ?? "—",
       meta: { className: "hidden md:table-cell" },
     }),
-    columnHelper.accessor("isSuperuser", {
+    columnHelper.accessor("hasFounderAccess", {
       header: "Role",
       cell: ({ row }) => {
-        const { isSuperuser, isFounder } = row.original;
-        if (isFounder) {
+        const { isFounder, isCofounder } = row.original;
+        if (isFounder)
           return (
             <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
               Founder
             </Badge>
           );
-        }
-        return isSuperuser ? (
-          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-            Owner
-          </Badge>
-        ) : (
-          <Badge variant="outline">Staff</Badge>
-        );
+        if (isCofounder)
+          return (
+            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+              Co-founder
+            </Badge>
+          );
+        return <Badge variant="outline">Staff</Badge>;
       },
       meta: { className: "hidden sm:table-cell" },
     }),
@@ -111,22 +110,22 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
       // stays visible — status is the other thing people scan a user list for
     }),
     {
-  accessorKey: "createdAt",
-  header: "Created",
-  meta: { className: "hidden md:table-cell" },
-  cell: ({ row }) => {
-    const d = new Date(row.original.createdAt);
-    return (
-      <span className="text-sm text-muted-foreground">
-        {d.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "2-digit",
-        })}
-      </span>
-    );
-  },
-},
+      accessorKey: "createdAt",
+      header: "Created",
+      meta: { className: "hidden md:table-cell" },
+      cell: ({ row }) => {
+        const d = new Date(row.original.createdAt);
+        return (
+          <span className="text-sm text-muted-foreground">
+            {d.toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+            })}
+          </span>
+        );
+      },
+    },
     columnHelper.display({
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
@@ -532,7 +531,7 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // Role
 
-// accessor("isSuperuser")
+// accessor("hasFounderAccess")
 
 // Uses a user property to determine the role display.
 
@@ -1040,10 +1039,10 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // This section decides which badge should appear for each user.
 
-// columnHelper.accessor("isSuperuser", {
+// columnHelper.accessor("hasFounderAccess", {
 //   header: "Role",
 //   cell: ({ row }) => {
-//     const { isSuperuser, isFounder } = row.original;
+//     const { hasFounderAccess, isFounder } = row.original;
 
 //     if (isFounder) {
 //       return (
@@ -1053,7 +1052,7 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 //       );
 //     }
 
-//     return isSuperuser ? (
+//     return hasFounderAccess ? (
 //       <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
 //         Owner
 //       </Badge>
@@ -1066,7 +1065,7 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // First, understand this line:
 
-// const { isSuperuser, isFounder } = row.original;
+// const { hasFounderAccess, isFounder } = row.original;
 
 // This is object destructuring. It extracts two properties from the original user object and creates local variables for them.
 
@@ -1080,7 +1079,7 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // No
 
-// Check isSuperuser
+// Check hasFounderAccess
 
 // If true
 
@@ -1090,11 +1089,11 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // Staff
 
-// The first if has priority. A founder receives the Founder badge even if isSuperuser is false.
+// The first if has priority. A founder receives the Founder badge even if hasFounderAccess is false.
 
 // After that, the ternary expression:
 
-// return isSuperuser ? (
+// return hasFounderAccess ? (
 //   <Badge>Owner</Badge>
 // ) : (
 //   <Badge variant="outline">Staff</Badge>
@@ -1102,7 +1101,7 @@ export function getUserColumns(currentUserId: string, mutateUsers: () => void) {
 
 // means:
 
-// If isSuperuser is true, return the Owner badge.
+// If hasFounderAccess is true, return the Owner badge.
 
 // Otherwise, return the Staff badge.
 

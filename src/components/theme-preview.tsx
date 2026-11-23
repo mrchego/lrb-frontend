@@ -69,6 +69,15 @@ export function ThemeFrame({
               Cancel
             </span>
           </div>
+          <div className="flex h-8 items-end gap-1">
+            {[55, 85, 40, 100, 70].map((h, i) => (
+              <span
+                key={i}
+                className="w-3 rounded-sm"
+                style={{ height: `${h}%`, backgroundColor: `var(--chart-${i + 1})` }}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="rounded-md border border-input px-2 py-1 text-xs text-muted-foreground">

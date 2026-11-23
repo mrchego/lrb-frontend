@@ -67,7 +67,7 @@ export const LOGOUT_MUTATION = `
 
 // Plain strings have no checking. A typo like fullNme only fails at runtime. Tools like GraphQL Code Generator can check these against your schema and generate TypeScript types.
 // Repeated field lists. id email appears in more than one place. A fragment could share it.
-// isSuperuser on the frontend is for the UI only. Use it to show or hide buttons, but the backend must enforce every permission. Anyone can edit frontend code in the browser.
+// hasFounderAccess on the frontend is for the UI only. Use it to show or hide buttons, but the backend must enforce every permission. Anyone can edit frontend code in the browser.
 // Check permissions, not role names. effectivePermissions returning codenames fits that: the frontend should ask "does the user have users.view?" and never "is the user an admin?"
 // effectivePermissions(userId:) takes a user id. The backend must confirm the caller may see that user's permissions. Otherwise anyone could look up anyone (an IDOR-style bug). For the current user, me could include the permissions and remove the need to pass an id.
 // Password travels in the request body. That is normal, but it is safe only over HTTPS in production. Also never log the variables.
@@ -79,3 +79,4 @@ export const LOGOUT_MUTATION = `
 // The shape of a GraphQL response matches the shape of what you ask for.
 // Never build query text by inserting user input. Send values through variables.
 // Errors can come back in two places: top-level errors (which gqlFetch throws) and errors inside the result like login.errors (which you must check yourself).
+
