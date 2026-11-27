@@ -1,6 +1,6 @@
 export const PROMOTE_STAFF_TO_LOGIN_MUTATION = `
-  mutation PromoteStaffToLogin($userId: ID!, $roleId: ID!) {
-    promoteStaffToLogin(input: { userId: $userId, roleId: $roleId }) {
+  mutation PromoteStaffToLogin($userId: ID!, $roleId: ID, $permissionCodenames: [String!]) {
+    promoteStaffToLogin(input: { userId: $userId, roleId: $roleId, permissionCodenames: $permissionCodenames }) {
       success
       invitation { id email roleName }
       errors { message code field }

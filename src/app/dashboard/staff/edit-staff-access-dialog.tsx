@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { Loading } from "@/components/loading";
-import { AccessPicker, EMPTY_ACCESS, type AccessValue } from "./access-picker";
+import { AccessPicker, EMPTY_ACCESS, hasAccess, type AccessValue } from "./access-picker";
 import {
   UPDATE_STAFF_ACCESS_MUTATION,
 } from "./mutation";
@@ -70,7 +70,7 @@ export function EditStaffAccessDialog({
   }, [open, target.id, target.roles]);
 
   const handleSave = async () => {
-    if (!value.roleId || submitting) return;
+    if (!hasAccess(value) || submitting) return;
     setSubmitting(true);
     try {
       const data = await gqlFetch<{
@@ -78,7 +78,7 @@ export function EditStaffAccessDialog({
       }>(UPDATE_STAFF_ACCESS_MUTATION, {
         input: {
           userId: target.id,
-          roleId: value.roleId,
+          roleId: value.roleId, // null = direct permissions only
           permissionCodenames: Array.from(value.codenames),
         },
       });
@@ -121,7 +121,7 @@ export function EditStaffAccessDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={submitting || loading || !value.roleId}>
+          <Button onClick={handleSave} disabled={submitting || loading || !hasAccess(value)}>
             {submitting ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

@@ -97,7 +97,7 @@ export function StaffMemberRowActions({
           {!target.hasFounderAccess && target.canLogin && (
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <ShieldCheck className="mr-2 h-4 w-4" />
-              Edit role & permissions
+              Edit role &amp; permissions
             </DropdownMenuItem>
           )}
 

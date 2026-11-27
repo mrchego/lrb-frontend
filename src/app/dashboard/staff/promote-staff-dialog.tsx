@@ -5,48 +5,53 @@ import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
 import { PROMOTE_STAFF_TO_LOGIN_MUTATION } from "./mutation";
 import { Button } from "@/components/ui/button";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "react-toastify";
+import { AccessPicker, EMPTY_ACCESS, hasAccess, type AccessValue } from "./access-picker";
+import type { Permission } from "../roles/type";
 
-type Role = { id: string; name: string };
+type RoleLite = { id: string; name: string; permissions: { codename: string }[] };
 
 export function PromoteStaffDialog({
-  userId, roles, onDone,
-}: { userId: string; roles: Role[]; onDone: () => void }) {
+  userId, roles, permissions, onDone,
+}: {
+  userId: string;
+  roles: RoleLite[];
+  permissions: Permission[];
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [roleId, setRoleId] = useState<string | null>(null);
+  const [access, setAccess] = useState<AccessValue>(EMPTY_ACCESS);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handlePromote = async () => {
-    if (!roleId) return;
+    if (!hasAccess(access) || submitting) return;
     setSubmitting(true);
     try {
-    const data = await gqlFetch<{
-      promoteStaffToLogin: { success: boolean; errors: any[] };
-    }>(PROMOTE_STAFF_TO_LOGIN_MUTATION, { userId, roleId });
+      const data = await gqlFetch<{
+        promoteStaffToLogin: { success: boolean; errors: any[] };
+      }>(PROMOTE_STAFF_TO_LOGIN_MUTATION, {
+        userId,
+        roleId: access.roleId, // null = direct permissions only
+        permissionCodenames: Array.from(access.codenames),
+      });
 
-    if (data.promoteStaffToLogin.success) {
-      toast.success("Invitation sent.");
-      setOpen(false);
-      onDone();
-    } else {
-      toast.error(
-        data.promoteStaffToLogin.errors?.[0]?.message ??
-          "Failed to send invitation.",
-      );
+      if (data.promoteStaffToLogin.success) {
+        toast.success("Invitation sent.");
+        setOpen(false);
+        setAccess(EMPTY_ACCESS);
+        onDone();
+      } else {
+        toast.error(
+          data.promoteStaffToLogin.errors?.[0]?.message ?? "Failed to send invitation.",
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof GraphQLError ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
     }
-  } catch (err) {
-    toast.error(
-      err instanceof GraphQLError ? err.message : "Something went wrong.",
-    );
-  } finally {
-    setSubmitting(false);
-  }
   };
 
   return (
@@ -54,24 +59,20 @@ export function PromoteStaffDialog({
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         Give Login Access
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Give Login Access</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2">
-          <Select value={roleId ?? ""} onValueChange={setRoleId}>
-            <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
+        <AccessPicker
+          roles={roles}
+          permissions={permissions}
+          value={access}
+          onChange={setAccess}
+          disabled={submitting}
+        />
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handlePromote} disabled={submitting || !roleId}>
+          <Button onClick={handlePromote} disabled={submitting || !hasAccess(access)}>
             {submitting ? "Sending…" : "Send Invitation"}
           </Button>
         </DialogFooter>

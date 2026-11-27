@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PaginationState } from "@tanstack/react-table";
 import { useAuth } from "@/components/auth-provider";
 import { RequireSuperuser } from "@/components/require-superuser";
 import { gqlFetch, GraphQLError } from "@/lib/graphql-client";
@@ -7,13 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +26,12 @@ import {
   INVITATIONS_QUERY,
 } from "./query";
 import type { Permission, Role } from "../roles/type";
-import { AccessPicker, EMPTY_ACCESS, type AccessValue } from "./access-picker";
+import {
+  AccessPicker,
+  EMPTY_ACCESS,
+  hasAccess,
+  type AccessValue,
+} from "./access-picker";
 import { INVITE_STAFF_MUTATION } from "./mutation";
 
 import { StaffMembersTable } from "./staff-members-table";
@@ -47,6 +46,7 @@ import {
 import { toast } from "react-toastify";
 import { Loading } from "@/components/loading";
 import { PERMISSIONS_QUERY } from "../roles/query";
+import { ServerPagination } from "@/components/server-pagination";
 
 export default function StaffPage() {
   return (
@@ -69,6 +69,29 @@ function StaffPageContent() {
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [recordsOnly, setRecordsOnly] = useState<ManagedUser[]>([]);
   const [loadingRecordsOnly, setLoadingRecordsOnly] = useState(true);
+  const [invitationsPage, setInvitationsPage] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const [invitationsTotal, setInvitationsTotal] = useState(0);
+  const [membersPage, setMembersPage] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const [membersTotal, setMembersTotal] = useState(0);
+
+  const [recordsPage, setRecordsPage] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const [recordsTotal, setRecordsTotal] = useState(0);
+
+  // Request counters prevent older requests from overwriting newer results.
+  const membersReq = useRef(0);
+  const recordsReq = useRef(0);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [access, setAccess] = useState<AccessValue>(EMPTY_ACCESS);
 
@@ -116,29 +139,64 @@ function StaffPageContent() {
   const STAFF_TAB_PAGE_SIZE = 100;
 
   const loadMembers = async () => {
+    const id = ++membersReq.current;
+
     setLoadingMembers(true);
+
     try {
-      const res = await gqlFetch<{ staffMembers: StaffMemberConnection }>(
-        STAFF_MEMBERS_QUERY,
-        { limit: STAFF_TAB_PAGE_SIZE, offset: 0 },
+      const res = await gqlFetch<{
+        staffMembers: StaffMemberConnection;
+      }>(STAFF_MEMBERS_QUERY, {
+        limit: membersPage.pageSize,
+        offset: membersPage.pageIndex * membersPage.pageSize,
+      });
+
+      // Ignore responses from older requests.
+      if (id !== membersReq.current) return;
+
+      const last = Math.max(
+        0,
+        Math.ceil(res.staffMembers.totalCount / membersPage.pageSize) - 1,
       );
+
+      // Handle cases where the current page no longer exists.
+      // Example: the last member on the last page was deleted.
+      if (membersPage.pageIndex > last) {
+        setMembersPage((p) => ({
+          ...p,
+          pageIndex: last,
+        }));
+
+        return;
+      }
+
       setMembers(res.staffMembers.items);
+      setMembersTotal(res.staffMembers.totalCount);
     } catch (err) {
       showError(err);
     } finally {
-      setLoadingMembers(false);
+      if (id === membersReq.current) {
+        setLoadingMembers(false);
+      }
     }
   };
 
   const loadInvitations = async (filter = invitationFilter) => {
     setLoadingInvitations(true);
+
     try {
       const used = filter === "all" ? undefined : filter === "accepted";
-      const res = await gqlFetch<{ invitations: InvitationConnection }>(
-        INVITATIONS_QUERY,
-        { used, limit: STAFF_TAB_PAGE_SIZE, offset: 0 },
-      );
+
+      const res = await gqlFetch<{
+        invitations: InvitationConnection;
+      }>(INVITATIONS_QUERY, {
+        used,
+        limit: invitationsPage.pageSize,
+        offset: invitationsPage.pageIndex * invitationsPage.pageSize,
+      });
+
       setInvitations(res.invitations.items);
+      setInvitationsTotal(res.invitations.totalCount);
     } catch (err) {
       showError(err);
     } finally {
@@ -147,30 +205,73 @@ function StaffPageContent() {
   };
 
   const loadRecordsOnly = async () => {
+    const id = ++recordsReq.current;
+
     setLoadingRecordsOnly(true);
+
     try {
-      const res = await gqlFetch<{ users: UserConnection }>(USERS_QUERY, {
+      const res = await gqlFetch<{
+        users: UserConnection;
+      }>(USERS_QUERY, {
         canLogin: false,
-        limit: STAFF_TAB_PAGE_SIZE,
-        offset: 0,
+        limit: recordsPage.pageSize,
+        offset: recordsPage.pageIndex * recordsPage.pageSize,
       });
+
+      // Ignore outdated requests.
+      if (id !== recordsReq.current) return;
+
+      const last = Math.max(
+        0,
+        Math.ceil(res.users.totalCount / recordsPage.pageSize) - 1,
+      );
+
+      // Return to the last available page if records were deleted.
+      if (recordsPage.pageIndex > last) {
+        setRecordsPage((p) => ({
+          ...p,
+          pageIndex: last,
+        }));
+
+        return;
+      }
+
       setRecordsOnly(res.users.items);
+      setRecordsTotal(res.users.totalCount);
     } catch (err) {
       showError(err);
     } finally {
-      setLoadingRecordsOnly(false);
+      if (id === recordsReq.current) {
+        setLoadingRecordsOnly(false);
+      }
     }
   };
 
   useEffect(() => {
     loadRoles();
     loadPermissions();
-    loadMembers();
     loadInvitations();
-    loadRecordsOnly();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadMembers();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membersPage]);
+
+  useEffect(() => {
+    loadRecordsOnly();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordsPage]);
+
+  useEffect(() => {
+    loadInvitations();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitationsPage]);
 
   const update =
     (key: "email" | "firstName" | "lastName") =>
@@ -237,6 +338,12 @@ function StaffPageContent() {
     }
   };
   if (!user) return null;
+
+  const missing = [
+    !form.firstName && "first name",
+    !form.email && "email",
+    form.canLogin && !hasAccess(access) && "a role or at least one permission",
+  ].filter(Boolean) as string[];
 
   return (
     <div>
@@ -316,6 +423,11 @@ function StaffPageContent() {
                 </div>
               )}
             </div>
+            {missing.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Still needed: {missing.join(", ")}.
+              </p>
+            )}
             <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
               <Button
                 variant="outline"
@@ -330,7 +442,7 @@ function StaffPageContent() {
                   submitting ||
                   !form.email ||
                   !form.firstName ||
-                  (form.canLogin && !access.roleId)
+                  (form.canLogin && !hasAccess(access))
                 }
                 className="w-full sm:w-auto"
               >
@@ -366,6 +478,13 @@ function StaffPageContent() {
             permissions={permissions}
             onRefresh={loadMembers}
           />
+          {membersTotal > 0 && (
+            <ServerPagination
+              pagination={membersPage}
+              totalCount={membersTotal}
+              onPaginationChange={setMembersPage}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="invitations" className="mt-4">
@@ -377,6 +496,11 @@ function StaffPageContent() {
                 variant={invitationFilter === v ? "default" : "outline"}
                 onClick={() => {
                   setInvitationFilter(v);
+                  setInvitationsPage((p) => ({
+                    ...p,
+                    pageIndex: 0,
+                  }));
+
                   loadInvitations(v);
                 }}
               >
@@ -384,10 +508,17 @@ function StaffPageContent() {
               </Button>
             ))}
           </div>
+
           <InvitationsTable
             invitations={invitations}
             isLoading={loadingInvitations}
             onRefresh={() => loadInvitations()}
+          />
+
+          <ServerPagination
+            pagination={invitationsPage}
+            totalCount={invitationsTotal}
+            onPaginationChange={setInvitationsPage}
           />
         </TabsContent>
 
@@ -399,28 +530,39 @@ function StaffPageContent() {
               Everyone with a staff record can already log in.
             </p>
           ) : (
-            <div className="grid gap-3">
-              {recordsOnly.map((u) => (
-                <div
-                  key={u.id}
-                  className="rounded-md border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">
-                      {u.fullName || u.email}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {u.email}
-                    </p>
+            <>
+              <div className="grid gap-3">
+                {recordsOnly.map((u) => (
+                  <div
+                    key={u.id}
+                    className="rounded-md border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {u.fullName || u.email}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground truncate">
+                        {u.email}
+                      </p>
+                    </div>
+
+                    <PromoteStaffDialog
+                      userId={u.id}
+                      roles={roles}
+                      permissions={permissions}
+                      onDone={loadRecordsOnly}
+                    />
                   </div>
-                  <PromoteStaffDialog
-                    userId={u.id}
-                    roles={roles}
-                    onDone={loadRecordsOnly}
-                  />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              <ServerPagination
+                pagination={recordsPage}
+                totalCount={recordsTotal}
+                onPaginationChange={setRecordsPage}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -10,9 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import type { Permission } from "../roles/type";
-import { PermissionChecklist } from "../roles/PermissionChecklist";
+import { PermissionChecklist } from "../roles/permission-checklist";
 
 type RoleLite = {
   id: string;
@@ -22,7 +21,12 @@ type RoleLite = {
 
 export type AccessValue = { roleId: string | null; codenames: Set<string> };
 
+// A person can be saved when they have a role OR at least one direct permission.
+export const hasAccess = (v: AccessValue) => v.roleId !== null || v.codenames.size > 0;
+
 export const EMPTY_ACCESS: AccessValue = { roleId: null, codenames: new Set() };
+
+const NO_ROLE = "__none__"; // Select can't hold null, so a sentinel stands for "no role"
 
 const permsOfRole = (roles: RoleLite[], roleId: string | null) =>
   new Set(
@@ -57,8 +61,13 @@ export function AccessPicker({
   );
   const customised = value.roleId !== null && !sameSet(baseline, value.codenames);
 
+  // Switching to "No role" keeps what is already ticked; switching to a real
+  // role replaces the ticks with that role's permissions.
   const pickRole = (roleId: string | null) =>
-    onChange({ roleId, codenames: permsOfRole(roles, roleId) });
+    onChange({
+      roleId,
+      codenames: roleId === null ? value.codenames : permsOfRole(roles, roleId),
+    });
 
   const toggle = (codename: string) => {
     const next = new Set(value.codenames);
@@ -67,19 +76,29 @@ export function AccessPicker({
     onChange({ ...value, codenames: next });
   };
 
+  const setMany = (codenames: string[], checked: boolean) => {
+    const next = new Set(value.codenames);
+    for (const c of codenames) {
+      if (checked) next.add(c);
+      else next.delete(c);
+    }
+    onChange({ ...value, codenames: next });
+  };
+
   return (
     <div className="space-y-5">
       <div>
-        <Label>Role*</Label>
+        <Label>Role</Label>
         <Select
-          value={value.roleId ?? ""}
-          onValueChange={(v) => pickRole(v || null)}
+          value={value.roleId ?? NO_ROLE}
+          onValueChange={(v) => pickRole(!v || v === NO_ROLE ? null : v)}
           disabled={disabled}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a role" />
+            <SelectValue placeholder="No role — custom permissions" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={NO_ROLE}>No role — custom permissions</SelectItem>
             {roles.map((r) => (
               <SelectItem key={r.id} value={r.id}>
                 {r.name}
@@ -88,7 +107,7 @@ export function AccessPicker({
           </SelectContent>
         </Select>
         <p className="mt-1 text-xs text-muted-foreground">
-          Choosing a role ticks its permissions below. You can still adjust them.
+          Choosing a role ticks its permissions below. Or skip the role and tick permissions directly.
         </p>
       </div>
 
@@ -117,6 +136,7 @@ export function AccessPicker({
           permissions={permissions}
           selected={value.codenames}
           onToggle={toggle}
+          onSetMany={setMany}
           disabled={disabled}
         />
       </div>
